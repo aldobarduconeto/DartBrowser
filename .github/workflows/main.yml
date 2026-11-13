@@ -1,0 +1,230 @@
+name: Build & Release Dart Browser
+
+on:
+  pull_request:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag da release (ex: v1.0.0). Se vazio, usa a versão do pubspec.yaml'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.47.9'
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runner: ubuntu-24.04
+            artifact: dart-browser-android.apk
+          - platform: linux
+            runner: ubuntu-24.04
+            artifact: dart-browser-linux.deb
+          - platform: windows
+            runner: windows-latest
+            artifact: DartBrowser-Setup.exe
+          - platform: macos
+            runner: macos-latest
+            artifact: dart-browser-macos.dmg
+          - platform: ios
+            runner: macos-latest
+            artifact: dart-browser-ios-unsigned.ipa
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK
+        if: matrix.platform == 'android'
+        shell: bash
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          (set +o pipefail; yes | "$SDKMANAGER" --licenses)
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev \
+            liblzma-dev libwebkit2gtk-4.1-dev
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - run: flutter pub get --enforce-lockfile
+
+      - name: Build Android APK
+        if: matrix.platform == 'android'
+        run: |
+          flutter build apk --release --no-pub
+          cp build/app/outputs/flutter-apk/app-release.apk dart-browser-android.apk
+
+      - name: Build and package Linux
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          flutter build linux --release --no-pub
+          version=$(sed -n 's/^version: *\([^+[:space:]]*\).*/\1/p' pubspec.yaml)
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          dpkg --validate-version "$version"
+          stage="$RUNNER_TEMP/dart-browser-deb"
+          mkdir -p "$stage/DEBIAN" "$stage/usr/bin" "$stage/usr/lib/dart-browser" \
+            "$stage/usr/share/applications" \
+            "$stage/usr/share/icons/hicolor/1024x1024/apps"
+          cp -a build/linux/x64/release/bundle/. "$stage/usr/lib/dart-browser/"
+          ln -s /usr/lib/dart-browser/dart_browser "$stage/usr/bin/dart-browser"
+          install -m 644 assets/app_icon.png \
+            "$stage/usr/share/icons/hicolor/1024x1024/apps/com.awesome.dart_browser.png"
+          cat > "$stage/DEBIAN/control" <<EOF
+          Package: dart-browser
+          Version: $version
+          Architecture: amd64
+          Maintainer: Aldo Barduco Neto
+          Depends: libgtk-3-0t64, libwebkit2gtk-4.1-0
+          Description: Dart Browser
+          EOF
+          cat > "$stage/usr/share/applications/com.awesome.dart_browser.desktop" <<'EOF'
+          [Desktop Entry]
+          Name=Dart Browser
+          Exec=dart-browser
+          Icon=com.awesome.dart_browser
+          Terminal=false
+          Type=Application
+          Categories=Network;WebBrowser;
+          EOF
+          dpkg-deb --root-owner-group --build "$stage" dart-browser-linux.deb
+
+      - name: Build Windows bundle
+        if: matrix.platform == 'windows'
+        env:
+          CL: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS /D_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS"
+          _CL_: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS /D_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS"
+        run: flutter build windows --release --no-pub
+
+      - name: Build Windows installer
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (!(Test-Path -LiteralPath $compiler)) {
+            choco install innosetup -y
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          $version = ((Select-String '^version:' pubspec.yaml).Line -split '\s+|\+')[1]
+          @"
+          [Setup]
+          AppId=DartBrowser
+          AppName=Dart Browser
+          AppVersion=$version
+          DefaultDirName={localappdata}\Programs\Dart Browser
+          PrivilegesRequired=lowest
+          OutputDir=.
+          OutputBaseFilename=DartBrowser-Setup
+          SetupIconFile=windows\runner\resources\app_icon.ico
+          UninstallDisplayIcon={app}\dart_browser.exe
+          Compression=lzma2
+          SolidCompression=yes
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{autoprograms}\Dart Browser"; Filename: "{app}\dart_browser.exe"
+          "@ | Set-Content -Encoding utf8 dart-browser.iss
+          & $compiler dart-browser.iss
+          exit $LASTEXITCODE
+
+      - name: Build macOS disk image
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          flutter build macos --release --no-pub
+          hdiutil create -volname "Dart Browser" \
+            -srcfolder build/macos/Build/Products/Release/dart_browser.app \
+            -format UDZO dart-browser-macos.dmg
+
+      - name: Build unsigned iOS IPA
+        if: matrix.platform == 'ios'
+        shell: bash
+        run: |
+          flutter build ios --release --no-codesign --no-pub
+          stage="$RUNNER_TEMP/dart-browser-ios"
+          mkdir -p "$stage/Payload"
+          ditto build/ios/iphoneos/Runner.app "$stage/Payload/Runner.app"
+          ditto -c -k --keepParent "$stage/Payload" dart-browser-ios-unsigned.ipa
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine release version and tag
+        id: release_info
+        shell: bash
+        run: |
+          if [[ -n "${{ inputs.tag }}" ]]; then
+            echo "tag_name=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "release_name=Dart Browser ${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ startsWith(github.ref, 'refs/tags/v') }}" == "true" ]]; then
+            echo "tag_name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "release_name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            version=$(sed -n 's/^version: *\([^+[:space:]]*\).*/\1/p' pubspec.yaml)
+            echo "tag_name=v${version}" >> "$GITHUB_OUTPUT"
+            echo "release_name=Dart Browser v${version}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag_name }}
+          name: ${{ steps.release_info.outputs.release_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/dart-browser-android.apk
+            release-assets/dart-browser-linux.deb
+            release-assets/DartBrowser-Setup.exe
+            release-assets/dart-browser-macos.dmg
+            release-assets/dart-browser-ios-unsigned.ipa
+
