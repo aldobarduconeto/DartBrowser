@@ -592,7 +592,11 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
       listenable: browser,
       builder: (context, _) {
         final tab = browser.current;
-        final mobileLayout = !WindowService.isDesktop;
+        final tabletLayout =
+            !WindowService.isDesktop &&
+            !widget.isTv &&
+            MediaQuery.sizeOf(context).shortestSide >= 600;
+        final mobileLayout = !WindowService.isDesktop && !tabletLayout;
         final tabsWidget = BrowserTabs(
           browser: browser,
           vertical: browser.verticalTabs,
@@ -885,7 +889,10 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
 
                           // BANNER DO CHROME WEB STORE
                           if (!isFullScreen &&
-                              tab.address?.contains('chromewebstore.google.com/detail/') == true)
+                              tab.address?.contains(
+                                    'chromewebstore.google.com/detail/',
+                                  ) ==
+                                  true)
                             _buildWebStoreBanner(context, tab.address!),
 
                           // ÁREA DE CONTEÚDO DA PÁGINA (DESIGN FLOATING FRAMED CANVAS)
@@ -1158,8 +1165,7 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
     final colors = Theme.of(context).colorScheme;
     final isInstalled = browser.addons.any(
       (a) =>
-          a.id.contains(extId) ||
-          a.files.values.any((f) => f.contains(extId)),
+          a.id.contains(extId) || a.files.values.any((f) => f.contains(extId)),
     );
 
     return Container(
@@ -1190,11 +1196,11 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
             child: Text(
               isInstalled
                   ? (isMobile
-                      ? 'Extensão ativa.'
-                      : 'Esta extensão está instalada e ativa no Dart Browser.')
+                        ? 'Extensão ativa.'
+                        : 'Esta extensão está instalada e ativa no Dart Browser.')
                   : (isMobile
-                      ? 'Extensão compatível!'
-                      : 'Extensão compatível detectada! Clique para instalar diretamente.'),
+                        ? 'Extensão compatível!'
+                        : 'Extensão compatível detectada! Clique para instalar diretamente.'),
               style: TextStyle(
                 fontSize: isMobile ? 12 : 13,
                 fontWeight: FontWeight.w600,

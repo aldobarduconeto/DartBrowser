@@ -1,225 +1,134 @@
 <div align="center">
-  <img src="assets/app_icon.png" width="112" height="112" alt="Ícone de bússola do Dart Browser">
+  <img src="assets/app_icon.png" width="96" alt="Ícone do Dart Browser">
   <h1>Dart Browser</h1>
-  <p>Navegador nativo em Flutter e Dart com grupos de abas, ferramentas de leitura e uma interface personalizável.</p>
-  <p><strong>Windows · Linux · macOS · Android · iOS</strong></p>
-  <p>
-    <a href="#primeira-abertura">Começar</a> ·
-    <a href="#prévias-da-interface">Prévias</a> ·
-    <a href="#mapa-da-interface">Interface</a> ·
-    <a href="#configurações">Configurações</a> ·
-    <a href="#privacidade-e-dados">Privacidade</a> ·
-    <a href="#atalhos">Atalhos</a> ·
-    <a href="#build-e-distribuição">Builds</a>
-  </p>
+  <p>Navegador em Flutter e Dart com grupos de abas, ferramentas de leitura e interface personalizável.</p>
+  <p><a href="#instalação">Instalação</a> · <a href="#como-usar">Como usar</a> · <a href="#configurações">Configurações</a> · <a href="#desenvolvimento">Desenvolvimento</a></p>
 </div>
 
----
+## Prévias
 
-## Visão geral
+*Simulações da interface. A aparência pode variar conforme a plataforma e o tema.*
 
-| Se você quer… | Comece aqui |
+| Desktop · Nova aba | Desktop · Grupos de abas |
 | --- | --- |
-| Instalar uma versão ou gerar um pacote | [Build e distribuição](#build-e-distribuição) |
-| Escolher o buscador e começar a navegar | [Primeira abertura](#primeira-abertura) |
-| Organizar abas e guardar páginas | [Uso diário](#uso-diário) |
-| Importar um complemento | [Extensões e scripts](#extensões-e-scripts) |
-| Rodar o projeto a partir do código | [Desenvolvimento](#desenvolvimento) |
+| ![Nova aba com busca e atalhos](docs/screenshots/previa-desktop.png) | ![Abas verticais com um grupo expandido](docs/screenshots/previa-grupos.png) |
 
-## Prévias da interface
-
-Imagens simuladas para ilustrar os recursos. A disposição e os detalhes podem variar no aplicativo.
-
-### Nova aba em tema escuro
-
-![Simulação da nova aba com busca central, abas no topo e atalhos de sites](docs/screenshots/nova-aba-escura.png)
-
-### Configurações e abas laterais em tema claro
-
-![Simulação com grupo de abas na lateral e opções de aparência e inicialização](docs/screenshots/configuracoes-claras.png)
-
-## Mapa da interface
-
-O esquema mostra a disposição com abas no topo. No modo vertical, a barra de abas passa para uma das laterais e a barra de endereço permanece acima da página.
-
-~~~text
-┌─────────────────────────────────────────────────────────┐
-│ Abas          Grupo de abas ▾          Aba ativa     +  │
-├─────────────────────────────────────────────────────────┤
-│ ←  →  ↻      Pesquisar ou digitar um endereço      ☆  ⋮ │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│                Site aberto ou tela de nova aba          │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-~~~
-
-| Região da interface | Controles disponíveis |
+| Desktop · Configurações | Tablet · Layout de desktop |
 | --- | --- |
-| **Barra de abas** | Abrir e selecionar abas, fixar páginas e organizar grupos recolhíveis. A barra pode ficar no topo ou nas laterais. |
-| **Barra de endereço** | Abrir endereços, pesquisar, voltar, avançar, recarregar, interromper o carregamento e acessar favoritos e extensões fixadas. |
-| **Área da página** | Exibe o site ativo, a tela de nova aba ou uma ação para tentar novamente quando o carregamento falha. |
-| **Nova aba** | Busca central, atalhos para favoritos, página inicial e sites recentes. |
-| **Menu** | Biblioteca, guias anônimas, ferramentas de página, extensões e configurações. |
-| **Dock de ferramentas** | Acesso à paleta de comandos, captura, leitura em voz alta, tradução e escudo de privacidade. |
+| ![Configurações de tema e barra lateral](docs/screenshots/previa-configuracoes.png) | ![Tablet com abas e endereço no topo](docs/screenshots/previa-tablet.png) |
 
-## Primeira abertura
-
-1. Escolha o buscador, o tema e a posição das abas na tela de boas-vindas.
-2. Selecione **Começar a navegar**. O navegador registra a conclusão no perfil local.
-3. Digite um endereço na barra superior ou faça uma busca pela nova aba.
-
-Os buscadores disponíveis são **Google, DuckDuckGo, Bing, Ecosia, Brave Search e Yahoo**. Altere o padrão em **Configurações → Navegação → Mecanismo de busca** ou pelo seletor na nova aba. A escolha vale para as duas barras de busca.
-
-## Uso diário
-
-### Abas e sessões
-
-- Abra o menu **Organizar aba** (⋯) para criar um grupo com nome e cor, mover a aba para outro grupo ou retirá-la. Clique no cabeçalho de um grupo para recolhê-lo ou expandi-lo.
-- O menu do grupo permite editar nome e cor, criar uma aba no grupo ou desagrupar as páginas abertas.
-- Use **Abas na lateral** para trocar de layout. Nas configurações, posicione a barra à esquerda ou à direita e ative o modo compacto para mostrar apenas os ícones.
-- O menu oferece ações para duplicar, reabrir, fixar e silenciar abas. A restauração de sessão recupera os endereços das abas comuns, os grupos e a seleção.
-- O economizador de memória suspende abas inativas. Selecionar uma aba suspensa recarrega a página.
-
-### Favoritos, histórico e leitura
-
-- Use a estrela para favoritar a página atual. **Favoritar abas abertas** salva em lote os endereços HTTP/HTTPS das abas comuns, sem duplicar entradas.
-- Abra **Favoritos**, **Histórico** ou **Lista de leitura** pelo menu. Favoritos e histórico podem ser filtrados por endereço. Na lista de leitura, marque itens que já foram lidos.
-- Use **Localizar na página** para percorrer ocorrências de um termo. Ajuste o zoom ou abra o **Modo leitura** para tentar extrair o conteúdo principal de um artigo.
-- Guias anônimas ficam fora do histórico e da restauração de sessão do aplicativo. O isolamento de cookies e dados de sites depende do motor e da integração de perfil.
-
-### Encontrar e retomar uma página
-
-| Quando | Onde procurar |
+| Celular · Navegação no rodapé | Android TV e Google TV |
 | --- | --- |
-| Você já visitou a página | Abra **Menu → Histórico** e filtre pelo endereço. |
-| Você usa o site com frequência | Adicione aos **Favoritos** pela estrela da barra de endereço. |
-| Você quer guardar um artigo para depois | Adicione à **Lista de leitura** e marque como lido ao terminar. |
-| Você acabou de fechar a aba | Use **Reabrir aba fechada** ou **Ctrl+Shift+T**. |
+| <img src="docs/screenshots/previa-celular.png" width="260" alt="Celular com barra de busca em cápsula no rodapé"> | ![Interface de TV com foco no seletor de abas](docs/screenshots/previa-tv.png) |
 
-### Ferramentas e vídeo
+## Instalação
 
-- Consulte as informações do site, copie ou compartilhe o endereço por QR Code, veja o código-fonte ou ajuste o agente de usuário pelo menu.
-- Em vídeos HTML5 compatíveis, o botão **PiP** aparece na página. A disponibilidade depende do vídeo, do motor e das políticas do site.
-- No Android 8 ou superior, **Janela flutuante no Android** minimiza a atividade inteira em dispositivos compatíveis. Abra o vídeo em tela cheia antes para aproveitar a área da janela.
+Baixe o pacote correspondente à sua plataforma em [GitHub Releases](https://github.com/aldobarduconeto/DartBrowser/releases).
 
-### Ferramentas de produtividade
+| Plataforma | Pacote | Requisitos e instalação |
+| --- | --- | --- |
+| Windows | `DartBrowser-Setup.exe` | Windows 10 1809 ou superior, com Microsoft Edge WebView2 Runtime. Execute o instalador. |
+| Linux | `dart-browser-linux.deb` | Pacote para Ubuntu 24.04 x64, com GTK 3 e WebKitGTK 4.1. Use `sudo apt install ./dart-browser-linux.deb`. |
+| macOS | `dart-browser-macos.dmg` | macOS 12 ou superior. Abra o DMG e copie o aplicativo para **Aplicativos**. |
+| Android | `dart-browser-android.apk` | Android API 24 ou superior, com Android System WebView. Abra o APK no dispositivo. |
+| Android TV e Google TV | `dart-browser-android.apk` | O mesmo APK inclui uma entrada no lançador de TV e detecta o modo televisão. |
+| iOS | `dart-browser-ios-unsigned.ipa` | iOS 15 ou superior. O pacote precisa de assinatura e provisionamento Apple para instalação em dispositivo. |
 
-| Ferramenta | Como usar |
+O projeto distribui aplicativos nativos. A versão para Apple TV (tvOS) ainda está pendente.
+
+## Como usar
+
+Na primeira abertura, o **guia de boas-vindas** apresenta os recursos do navegador. Escolha idioma, tema, buscador e posição das abas, depois selecione **Começar a navegar**. Para rever o guia, abra **Configurações → Produtividade e Atalhos**.
+
+A barra de endereço abre URLs diretamente e envia termos ao buscador escolhido. As opções são Google, DuckDuckGo, Bing, Ecosia, Brave Search e Yahoo. Altere a preferência em **Configurações → Navegação** ou pelo seletor da nova aba.
+
+### Interface por dispositivo
+
+| Dispositivo | Navegação |
 | --- | --- |
-| **Paleta de comandos** | Pressione **Ctrl+K** para buscar ações do navegador pelo nome. |
-| **Captura da página** | Abra o dock ou pressione **Ctrl+Shift+S** para gerar uma prévia e salvar a imagem. |
-| **Leitura em voz alta** | Use o dock ou **Ctrl+Shift+U**. A reprodução usa as vozes de síntese disponíveis no motor. |
-| **Tradução** | Use **Traduzir página para português**. A função usa o Google Tradutor e pode abrir a página traduzida por esse serviço. |
-| **Notas por site** | Use o menu de contexto para escrever notas vinculadas ao site. O texto é salvo localmente. |
-| **Prévia de link** | Use a opção de prévia no menu de contexto para consultar o destino antes de abrir uma aba. |
-| **Sons de foco** | Abra o controle no dock. A reprodução depende do suporte do motor a áudio na página. |
-| **Tela cheia** | Pressione **F11** ou use o controle de tela cheia quando disponível no sistema. |
+| **Desktop** | Abas no topo ou nas laterais. A barra de ferramentas pode ser ocultada por inteiro ou por atalho. |
+| **Celular** | Endereço e navegação no rodapé. Toque no contador de abas para criar, alternar ou fechar abas. |
+| **TV** | Barra de endereço com texto ampliado e foco inicial no seletor de abas para uso com o controle remoto. |
 
-### Downloads e transferência de favoritos
+### Abas e grupos
 
-A **Central de Downloads**, em **Configurações**, mostra os downloads registrados pelo navegador, com nome, origem e localização quando disponível. A opção de limpar a lista remove os registros.
+No desktop, arraste uma aba com o mouse ou pressione e arraste com toque. Solte na primeira ou na segunda metade de outra aba para posicioná-la antes ou depois. Solte no cabeçalho de um grupo para adicioná-la a ele. A área de soltura no fim da barra retira a aba do grupo e a move para o final. O menu **Organizar aba** também permite mover abas entre grupos.
 
-Em **Configurações → Favoritos (Importar / Exportar HTML)**, transfira endereços no formato de favoritos HTML. A importação adiciona links HTTP/HTTPS e ignora endereços que já estão salvos. A exportação gera uma lista dos favoritos do navegador.
+Os grupos podem ter nome, cor e estado recolhido. Você pode duplicar, fixar, silenciar e reabrir abas pelo menu. Quando a restauração de sessão está ativa, o navegador recupera a ordem, os grupos e a aba selecionada. Na restauração, o WebView das abas em segundo plano é criado sob demanda. O economizador de memória pode suspender abas inativas.
+
+### Biblioteca, leitura e ferramentas
+
+| Área | Recursos |
+| --- | --- |
+| **Favoritos** | Use a estrela para salvar a página ou **Favoritar abas abertas** para salvar abas comuns em lote. Importação e exportação usam HTML de favoritos. |
+| **Histórico e leitura** | Filtre visitas por endereço, guarde páginas na lista de leitura e marque itens como lidos. |
+| **Leitura e mídia** | Busca na página, zoom, modo leitura, leitura em voz alta, tradução para português e sons de foco. Vozes e mídia dependem do motor. A tradução usa o Google Tradutor. |
+| **Picture-in-Picture** | Em vídeos HTML5 compatíveis, use o botão **PiP** da página. No Android compatível, a opção de janela flutuante minimiza a atividade inteira. |
+| **Ferramentas da página** | Paleta de comandos, captura, notas por site, prévia de link, código-fonte, QR Code e seleção de agente de usuário. |
+| **Downloads** | Consulte os downloads registrados em **Central de Downloads**. Limpar a lista remove os registros. |
 
 ## Configurações
 
-Abra **Menu → Configurações**.
-
 | Seção | Opções |
 | --- | --- |
-| **Navegação** | Buscador padrão, endereço da página inicial e restauração de abas. |
-| **Desempenho** | Economizador de memória para abas inativas. |
-| **Modo leitura e mídia** | Tema e tamanho da fonte do leitor. Opção de Picture-in-Picture automático. |
-| **Aparência** | Tema do sistema, claro ou escuro. Cor de destaque, preto OLED, arredondamento, filtro escuro para sites e posição da barra de abas. |
-| **Nova aba e inicialização** | Exibir atalhos e sites recentes separadamente. Abrir a página inicial quando nenhuma sessão for restaurada. |
-| **Motor de navegação** | Identificação do motor, diagnóstico da página e escolha do runtime WebView2 no Windows. |
-| **Complementos** | Gerenciamento de extensões e scripts. |
-| **Privacidade e dados** | Proteções de navegação, exceções por site, controle do histórico e limpeza de dados. |
+| **Navegação** | Buscador, página inicial e restauração de sessão. |
+| **Aparência** | Tema Sistema, Claro, Escuro ou OLED, cor de destaque, arredondamento, filtro escuro para sites e posição das abas. |
+| **Barra lateral de ferramentas** | Oculte a barra inteira ou selecione quais atalhos aparecem no desktop. As abas verticais têm seu próprio controle. |
+| **Nova aba e inicialização** | Controle a exibição de favoritos e sites recentes. A página inicial pode abrir quando nenhuma sessão for restaurada. |
+| **Desempenho, leitura e mídia** | Economizador de memória, tema e fonte do leitor e PiP automático. |
+| **Idioma** | Escolha o idioma do aplicativo ou siga o sistema. Inglês e espanhol têm tradução parcial dos textos próprios. Outros idiomas dependem dos componentes localizados do Flutter. |
 
-## Privacidade e dados
+### Privacidade e dados
 
-### Escudo de navegação
+O escudo oferece bloqueio de anúncios, anti-rastreio, proteção anti-fingerprint, limpeza de parâmetros de URL e exceções por site. A cobertura varia conforme o motor e a página. Use as estatísticas do escudo para consultar os contadores.
 
-Em **Configurações**, ajuste separadamente o bloqueador de anúncios, o anti-rastreio, a proteção anti-fingerprint e a limpeza de parâmetros de URL. Use **Sites permitidos** para cadastrar exceções e **Estatísticas de proteção** para consultar os contadores. O botão de escudo no dock mostra os dados da aba ativa.
+Favoritos, notas, lista de leitura e preferências ficam no perfil local. Guias anônimas ficam fora do histórico e da restauração de sessão do aplicativo. O isolamento de cookies e dados de sites depende do perfil do motor. Histórico, cookies e cache podem ser limpos separadamente em **Privacidade e dados**.
 
-Esses controles usam regras e scripts do navegador. A cobertura depende do tipo de solicitação, do site e do motor nativo. Se uma página parar de funcionar como esperado, teste a exceção por site e recarregue.
+### Extensões
 
-### Dados locais e sessão
-
-| Dado | Como é usado |
-| --- | --- |
-| **Preferências** | O navegador guarda buscador, aparência e opções da nova aba no perfil local. |
-| **Biblioteca e notas** | Favoritos, lista de leitura e notas permanecem no perfil do aplicativo. |
-| **Histórico** | Ao desativar o registro, as próximas visitas deixam de entrar no histórico. Use **Limpar histórico** para apagar as entradas existentes. |
-| **Sessão** | Quando habilitada, a restauração guarda as abas comuns e seus grupos. A opção de abrir a página inicial se aplica quando não há sessão a restaurar. |
-| **Cookies e cache** | Os dados do motor podem ser limpos separadamente. Limpar cookies pode encerrar sessões em sites. |
-
-## Extensões e scripts
-
-Abra **Menu → Extensões do Chrome**. Para importar uma extensão, indique uma pasta descompactada acessível ao aplicativo que contenha `manifest.json` e os arquivos referenciados por ele. Ative a extensão e recarregue a página.
-
-| Recurso | Cobertura atual |
-| --- | --- |
-| **Manifestos V2 e V3** | Importação de extensões descompactadas com recursos compatíveis. |
-| **Scripts e estilos** | Injeção de JavaScript e CSS nas páginas que correspondem aos padrões de URL da extensão. |
-| **Interface** | Pop-ups compatíveis, fixação na barra e badges. |
-| **APIs** | Emulação parcial de `runtime`, `storage`, `tabs` e `action`. O comportamento depende do motor e da extensão. |
-
-O gerenciador também oferece modo do desenvolvedor, edição de código e opções de exportar e restaurar backup dos complementos. Use essas opções para revisar ou transferir as configurações de extensões locais.
-
-A instalação direta pela Chrome Web Store, pacotes `.crx`, service workers completos e a equivalência integral das APIs Chrome ficam fora da cobertura atual.
+Em **Menu → Extensões do Chrome**, importe uma pasta descompactada com `manifest.json` e seus arquivos, ative o complemento e recarregue a página. O gerenciador oferece suporte parcial a Manifest V2/V3, scripts e estilos de conteúdo, pop-ups compatíveis e partes das APIs de extensões. A Chrome Web Store, arquivos `.crx` e service workers completos ficam fora da cobertura atual.
 
 ## Atalhos
 
-No macOS, use **⌘** no lugar de **Ctrl**. Os atalhos podem depender do foco na interface do navegador.
+No macOS, use **⌘** no lugar de **Ctrl**. O foco dentro da página pode afetar a captura do atalho.
 
 | Atalho | Ação | Atalho | Ação |
 | --- | --- | --- | --- |
-| `Ctrl+L` | Selecionar o endereço | `Ctrl+E` | Limpar e focar a barra para pesquisar |
-| `Ctrl+T` | Abrir aba | `Ctrl+Shift+T` | Reabrir aba fechada |
-| `Ctrl+W` | Fechar a aba atual | `Ctrl+Shift+N` | Abrir guia anônima |
-| `Ctrl+R` ou `F5` | Recarregar | `Ctrl+F` | Localizar na página |
-| `Ctrl+D` | Alternar favorito | `Ctrl+H` | Abrir histórico |
-| `Ctrl+U` | Ver código-fonte | `Ctrl+M` | Alternar o som da aba |
-| `Ctrl+Shift+P` | Fixar ou desafixar aba | `Esc` | Fechar a busca na página |
-| `Ctrl+=` / `Ctrl+-` | Aumentar ou reduzir zoom | `Ctrl+0` | Restaurar zoom |
+| Ctrl+L | Selecionar endereço | Ctrl+E | Limpar e focar a busca |
+| Ctrl+T | Nova aba | Ctrl+Shift+T | Reabrir aba fechada |
+| Ctrl+W | Fechar aba | Ctrl+Shift+N | Nova guia anônima |
+| Ctrl+R ou F5 | Recarregar | Ctrl+F | Localizar na página |
+| Ctrl+D | Favoritar página | Ctrl+H | Histórico |
+| Ctrl+K | Paleta de comandos | Ctrl+Shift+S | Captura de página |
+| Ctrl+Shift+U | Leitura em voz alta | F11 | Tela cheia |
+| Ctrl+= / Ctrl+- | Ajustar zoom | Ctrl+0 | Restaurar zoom |
 
-| Atalho adicional | Ação |
+## Motores de navegação
+
+| Plataforma | Motor |
 | --- | --- |
-| `Ctrl+K` | Abrir a paleta de comandos |
-| `Ctrl+Shift+S` | Capturar a página |
-| `Ctrl+Shift+U` | Alternar leitura em voz alta |
-| `F11` | Alternar tela cheia |
+| Windows | Microsoft Edge WebView2, baseado em Chromium |
+| Android, Android TV e Google TV | Android System WebView, baseado em Chromium |
+| macOS e iOS | WKWebView |
+| Linux | WebKitGTK 4.1 |
 
-## Plataformas e motores
-
-| Plataforma | Motor | Requisitos |
-| --- | --- | --- |
-| **Windows** | Microsoft Edge WebView2 | Windows 10 1809 ou superior e WebView2 Runtime. Para compilar, Visual Studio com ferramentas C++ e suporte a links simbólicos. |
-| **Linux** | WebKitGTK | GTK 3 e WebKitGTK 4.1. O pacote do workflow é compilado no Ubuntu 24.04 x64. |
-| **macOS** | WKWebView | macOS 12 ou superior. Para compilar, Xcode. |
-| **Android** | Android System WebView | API 24 ou superior no dispositivo. Para compilar, JDK 17 e Android SDK 36 ou superior. |
-| **iOS** | WKWebView | iOS 15 ou superior. Para compilar, Xcode no macOS. |
-
-No Windows, em **Configurações → Motor de navegação → Escolher runtime do WebView2**, selecione o **Evergreen** do sistema ou uma pasta **Fixed Version** extraída. Reinicie o aplicativo para aplicar. A tela de inicialização oferece retorno ao Evergreen se o runtime fixo falhar.
-
-Use **Verificar compatibilidade da página** para consultar a presença de WebGPU, WebCodecs, WebAuthn, WebRTC e recursos CSS. O diagnóstico vale para a página atual. A execução depende também de permissões, hardware e políticas do site.
+No Windows, escolha o runtime **Evergreen** ou uma pasta **Fixed Version** em **Configurações → Motor de navegação**. A troca é aplicada após reiniciar. A mesma seção diagnostica APIs expostas pela página, como WebGPU, WebCodecs, WebAuthn e WebRTC. A execução depende também do hardware e das políticas do site.
 
 ## Desenvolvimento
 
-O [workflow](.github/workflows/main.yml) usa **Flutter 3.47.9**. O projeto exige **Dart 3.13.7 ou superior na série 3.x**.
+O [workflow](.github/workflows/main.yml) usa Flutter **3.47.9**. O projeto exige Dart **3.13.7** ou superior na série 3.x.
 
 ```sh
 flutter doctor -v
 flutter pub get
 flutter devices
 flutter run -d <id-do-dispositivo>
+dart analyze lib
 ```
 
-Use `windows`, `linux` ou `macos` para um destino desktop disponível. No Android e iOS, selecione um ID listado por `flutter devices`.
+Use `windows`, `linux` ou `macos` para desktop. Em dispositivos móveis e TVs, use o identificador listado por `flutter devices`. Para compilar Android, prepare JDK 17 e Android SDK 36 ou superior. Em plataformas Apple, use Xcode. No Windows, prepare Visual Studio com ferramentas C++ e habilite o Modo de Desenvolvedor se o Flutter solicitar suporte a links simbólicos.
 
-No Ubuntu 24.04, instale as dependências nativas do workflow:
+No Ubuntu 24.04, instale as dependências de compilação do workflow.
 
 ```sh
 sudo apt-get update
@@ -227,74 +136,41 @@ sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev \
   liblzma-dev libwebkit2gtk-4.1-dev
 ```
 
-Para verificar o código Dart, execute `dart analyze lib`.
-
 ### Arquitetura MVC
 
 ```mermaid
 flowchart LR
-    View["Visões Flutter"] --> Controller["BrowserController"]
-    Controller --> Model["Modelos e preferências"]
-    Controller --> Services["Serviços de navegação"]
-    Services --> Engine["WebView nativo"]
-    Engine -->|Eventos da página| Controller
-    Controller -->|Estado da interface| View
+  View["Visões Flutter"] --> Controller["BrowserController"]
+  Controller --> Model["Abas, sessão e preferências"]
+  Controller --> Services["Serviços"]
+  Services --> WebView["WebView da plataforma"]
+  WebView -->|Eventos de navegação| Controller
 ```
 
-| Caminho | Responsabilidade |
+- [`lib/main.dart`](lib/main.dart) inicializa o aplicativo, o tema e o fluxo de primeira abertura.
+- [`lib/models/`](lib/models/) define abas, grupos, complementos e dados de navegação.
+- [`lib/controllers/browser_controller.dart`](lib/controllers/browser_controller.dart) coordena estado, comandos e sessão.
+- [`lib/services/`](lib/services/) implementa integrações como extensões, proteção, leitor e PiP.
+- [`lib/views/`](lib/views/) reúne as telas e componentes de desktop, celular e TV.
+
+### Compilar e publicar
+
+| Destino | Comando local |
 | --- | --- |
-| [`lib/main.dart`](lib/main.dart) | Inicialização, tema e verificação do motor. |
-| [`lib/models/`](lib/models/) | Abas, grupos, buscadores, lista de leitura e extensões. |
-| [`lib/controllers/browser_controller.dart`](lib/controllers/browser_controller.dart) | Sessão, navegação, comandos da interface e coordenação dos serviços. |
-| [`lib/services/`](lib/services/) | Motor, extensões, proteção de navegação, tradução, leitura em voz alta, busca na página e PiP. |
-| [`lib/views/`](lib/views/) | Tela principal, boas-vindas, configurações e componentes. |
+| Android e TV | `flutter build apk --release` |
+| Windows | `flutter build windows --release` |
+| Linux | `flutter build linux --release` |
+| macOS | `flutter build macos --release` |
+| iOS | `flutter build ios --release --no-codesign` |
 
-## Build e distribuição
-
-### Instalar um artefato
-
-- **Windows** — execute o instalador e confirme que o WebView2 Runtime está disponível.
-- **Linux** — no Ubuntu 24.04 x64, instale o pacote com `sudo apt install ./dart-browser-linux.deb`.
-- **macOS** — abra a imagem DMG e copie o aplicativo para **Aplicativos**.
-- **Android** — abra o APK no dispositivo e siga a confirmação de instalação do sistema.
-- **iOS** — assine o pacote e configure o provisionamento antes de instalar em um dispositivo.
-
-### Build local
-
-| Plataforma | Comando | Saída |
-| --- | --- | --- |
-| Android | `flutter build apk --release` | `build/app/outputs/flutter-apk/app-release.apk` |
-| Windows | `flutter build windows --release` | `build/windows/x64/runner/Release/` |
-| Linux | `flutter build linux --release` | `build/linux/x64/release/bundle/` |
-| macOS | `flutter build macos --release` | `build/macos/Build/Products/Release/dart_browser.app` |
-| iOS | `flutter build ios --release --no-codesign` | `build/ios/iphoneos/Runner.app` |
-
-### GitHub Actions
-
-O workflow [Build & Release Dart Browser](.github/workflows/main.yml) compila os cinco destinos em pull requests, no envio de tags `v*` e por execução manual na aba **Actions**.
-
-| Gatilho | Resultado |
-| --- | --- |
-| Pull request | Compila os destinos e guarda os pacotes como artefatos da execução. |
-| Envio de tag `v*` | Publica os pacotes em **GitHub Releases** com a tag enviada, após os cinco builds passarem. |
-| Execução manual | Publica após os builds. O campo opcional **tag** define a versão da release. Se ficar vazio, o workflow usa a versão do `pubspec.yaml`. |
-
-| Plataforma | Artefato |
-| --- | --- |
-| Android | `dart-browser-android.apk` |
-| Linux | `dart-browser-linux.deb` |
-| Windows | `DartBrowser-Setup.exe` |
-| macOS | `dart-browser-macos.dmg` |
-| iOS | `dart-browser-ios-unsigned.ipa` |
-
-O IPA precisa de assinatura e provisionamento Apple para instalação em dispositivo físico. O instalador do Windows depende de um WebView2 Runtime disponível no computador.
+O GitHub Actions compila os cinco destinos em pull requests, tags `v*` e execuções manuais. Tags e execuções manuais publicam após todos os builds passarem. Na execução manual, a entrada opcional `tag` define a tag da release. Quando vazia, o workflow usa a versão de `pubspec.yaml`.
 
 ## Solução de problemas
 
-| Sintoma | O que verificar |
+| Sintoma | O que conferir |
 | --- | --- |
-| **WebView2 indisponível** | Instale o runtime Evergreen ou corrija a pasta Fixed Version e reabra o navegador. |
-| **Flutter pede links simbólicos no Windows** | Habilite o Modo de Desenvolvedor do Windows e execute `flutter pub get` novamente. |
-| **Build Linux falha ao procurar WebKitGTK** | Confira se `pkg-config --modversion webkit2gtk-4.1` encontra a biblioteca de desenvolvimento. |
-| **Extensão não atua na página** | Confira se está ativa, se o endereço corresponde ao manifesto e se a extensão exige APIs fora da cobertura atual. Recarregue a página. |
-| **Botão PiP não aparece** | Confira se o vídeo HTML5, o motor e as políticas do site permitem Picture-in-Picture. |
+| WebView2 indisponível | Instale o Evergreen ou corrija o caminho da Fixed Version. |
+| Flutter pede links simbólicos | Ative o Modo de Desenvolvedor do Windows e rode `flutter pub get` novamente. |
+| Build Linux não encontra WebKitGTK | Execute `pkg-config --modversion webkit2gtk-4.1` e confira o pacote de desenvolvimento. |
+| Extensão não age na página | Confira ativação, padrão de URL e APIs exigidas. Recarregue a página. |
+| PiP não aparece | Confira se o vídeo e o motor suportam PiP e se o site permite o recurso. |

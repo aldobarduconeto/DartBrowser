@@ -391,8 +391,10 @@ class _BrowserSettingsState extends State<BrowserSettings> {
         child: SizedBox(
           width: double.infinity,
           height: kToolbarHeight,
-          alignment: Alignment.centerLeft,
-          child: const BrowserText('Configurações'),
+          child: const Align(
+            alignment: Alignment.centerLeft,
+            child: BrowserText('Configurações'),
+          ),
         ),
       ),
       actions: [
