@@ -1,3 +1,6 @@
+import 'private_window.dart';
+import 'navigation_surface.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../controllers/browser_controller.dart';
@@ -117,7 +120,7 @@ class BrowserBottomBar extends StatelessWidget {
           onPressed: () => onSubmit(address.text),
         ),
         filled: true,
-        fillColor: isTv ? colors.surfaceContainerHighest : Colors.transparent,
+        fillColor: isTv ? colors.surfaceContainerLow : Colors.transparent,
         isDense: true,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
@@ -143,6 +146,8 @@ class BrowserBottomBar extends StatelessWidget {
       tooltip: 'Menu',
       onSelected: (value) async {
         switch (value) {
+          case 'private_window':
+            await openPrivateWindow(context, browser);
           case 'private':
             browser.addIncognitoTab();
             focus.requestFocus();
@@ -184,6 +189,11 @@ class BrowserBottomBar extends StatelessWidget {
       itemBuilder: (context) => [
         if (!isTv && tab.canGoForward)
           const PopupMenuItem(value: 'forward', child: Text('Avançar')),
+        if (!browser.privateWindow)
+          const PopupMenuItem(
+            value: 'private_window',
+            child: Text('Nova janela anônima'),
+          ),
         const PopupMenuItem(value: 'private', child: Text('Nova guia anônima')),
         if (tab.address != null) ...[
           PopupMenuItem(
@@ -229,12 +239,15 @@ class BrowserBottomBar extends StatelessWidget {
       ],
     );
     if (!isTv) {
-      Widget capsule(Widget child) => Material(
-        color: colors.surfaceContainerHigh,
-        shape: StadiumBorder(side: BorderSide(color: colors.outlineVariant)),
-        clipBehavior: Clip.antiAlias,
-        child: child,
-      );
+      Widget capsule(Widget child) {
+        final surface = navigationSurface(colors, private: tab.isIncognito);
+        return Material(
+          color: surface.color,
+          shape: surface.shape,
+          clipBehavior: Clip.antiAlias,
+          child: child,
+        );
+      }
 
       return SafeArea(
         top: false,

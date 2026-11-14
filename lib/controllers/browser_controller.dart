@@ -22,11 +22,12 @@ import '../services/page_translate_service.dart';
 export '../models/browser_tab.dart';
 
 class BrowserController extends ChangeNotifier {
-  BrowserController(this.data) {
+  BrowserController(this.data, {this.privateWindow = false}) {
     addons = _addonService.load();
   }
 
   final BrowserData data;
+  final bool privateWindow;
   late final localeNotifier = ValueNotifier<Locale?>(
     BrowserLocale.fromTag(data.preferences.getString('browserLocale')),
   );
@@ -101,12 +102,13 @@ class BrowserController extends ChangeNotifier {
     forceWebDarkNotifier.value = value;
     notifyListeners();
     await data.preferences.setBool('forceWebDarkMode', value);
-    if (tabs.isNotEmpty && current.address != null) {
-      await applyPageVisualFilter(
-        current,
-        value ? PageVisualFilter.dark : PageVisualFilter.none,
-      );
-    }
+    await Future.wait([
+      for (final tab in tabs)
+        if (tab.initialization != null &&
+            tab.address != null &&
+            tab.visualFilter == PageVisualFilter.none)
+          applyPageVisualFilter(tab, PageVisualFilter.none),
+    ]);
   }
 
   // TELA CHEIA (FULLSCREEN)
@@ -286,6 +288,7 @@ class BrowserController extends ChangeNotifier {
   }
 
   List<BrowserAddon> get activeAddonsForCurrentPage {
+    if (current.isIncognito) return const [];
     final address = current.address;
     if (address == null || address.isEmpty) return const [];
     return addons
@@ -686,7 +689,8 @@ class BrowserController extends ChangeNotifier {
     final leavingTab = tabs.isNotEmpty && selected < tabs.length
         ? current
         : null;
-    final tab = BrowserTab(isIncognito: isIncognito)..group = group;
+    final tab = BrowserTab(isIncognito: isIncognito || privateWindow)
+      ..group = group;
     if (save && group != null) group.collapsed = false;
     tabs.add(tab);
     selected = tabs.length - 1;
@@ -713,8 +717,17 @@ class BrowserController extends ChangeNotifier {
     addTab(address: address, isIncognito: true, save: false);
   }
 
-  Future<void> _ensureConfigured(BrowserTab tab) =>
-      tab.initialization ??= _configure(tab);
+  Future<void> _ensureConfigured(BrowserTab tab) async {
+    final initialization = tab.initialization ??= _configure(tab);
+    try {
+      await initialization;
+    } catch (_) {
+      if (identical(tab.initialization, initialization)) {
+        tab.initialization = null;
+      }
+      rethrow;
+    }
+  }
 
   Future<void> _loadDeferred(BrowserTab tab) async {
     final address = tab.address;
@@ -723,6 +736,20 @@ class BrowserController extends ChangeNotifier {
   }
 
   Future<void> _configure(BrowserTab tab) async {
+    if (tab.isIncognito && tab.privateSession == null) {
+      final session = await WebViewSession.create(
+        mode: WebViewSessionMode.isolatedIncognito,
+      );
+      if (session == null) {
+        throw StateError('O motor não oferece uma sessão privada isolada.');
+      }
+      if (!tabs.contains(tab)) {
+        await session.close();
+        throw StateError('A aba foi fechada.');
+      }
+      tab.privateSession = session;
+      _update(tab);
+    }
     await tab.engine.setJavaScriptMode(JavaScriptMode.unrestricted);
     try {
       await tab.engine.addJavaScriptChannel(
@@ -760,7 +787,7 @@ class BrowserController extends ChangeNotifier {
                 tab.blockedTrackersCount += trackers;
                 data.totalBlockedAds += ads;
                 data.totalBlockedTrackers += trackers;
-                _saveShieldStats();
+                if (!tab.isIncognito) _saveShieldStats();
                 notifyListeners();
               }
             }
@@ -801,7 +828,7 @@ class BrowserController extends ChangeNotifier {
               tab.blockedTrackersCount++;
               data.totalBlockedTrackers++;
             }
-            _saveShieldStats();
+            if (!tab.isIncognito) _saveShieldStats();
             notifyListeners();
             return NavigationDecision.prevent;
           }
@@ -912,7 +939,7 @@ class BrowserController extends ChangeNotifier {
             if (historyChanged)
               data.preferences.setStringList('history', List.of(data.history)),
             _refreshPageDetails(tab, url),
-            _addonService.run(tab.engine, url, addons),
+            if (!tab.isIncognito) _addonService.run(tab.engine, url, addons),
             if (!hasMediaScript)
               _pictureInPicture.installForCurrentPage(tab.engine),
             if (tab.zoomLevel != 1.0) _applyZoom(tab),
@@ -922,7 +949,7 @@ class BrowserController extends ChangeNotifier {
                 tab,
                 tab.visualFilter != PageVisualFilter.none
                     ? tab.visualFilter
-                    : PageVisualFilter.dark,
+                    : PageVisualFilter.none,
               ),
             if ((data.adBlockEnabled ||
                     data.antiTrackingEnabled ||
@@ -949,7 +976,7 @@ class BrowserController extends ChangeNotifier {
     await Future.wait([
       _refreshNavigation(tab, notify: false, address: url),
       _refreshPageTitle(tab, url),
-      _refreshFavicon(tab, url),
+      if (!tab.isIncognito) _refreshFavicon(tab, url),
     ]);
     if (tab.address != url || !tabs.contains(tab)) return;
     if (current == tab) _syncActiveNotifiers();
@@ -997,7 +1024,7 @@ class BrowserController extends ChangeNotifier {
   Timer? _sessionDebounceTimer;
 
   void _saveSession() {
-    if (startupMode != StartupMode.session) return;
+    if (privateWindow || startupMode != StartupMode.session) return;
     _sessionDebounceTimer?.cancel();
     _sessionDebounceTimer = Timer(const Duration(milliseconds: 500), () {
       if (startupMode != StartupMode.session || tabs.isEmpty) return;
@@ -1022,7 +1049,25 @@ class BrowserController extends ChangeNotifier {
   }
 
   // ECONOMIZADOR DE MEMÓRIA AUTOMÁTICO (LIBERA RAM DE ABAS INATIVAS)
+  Timer? _memorySaverTimer;
+
+  Future<void> setMemorySaver(bool enabled) async {
+    data.memorySaver = enabled;
+    checkMemorySaver();
+    notifyListeners();
+    await data.preferences.setBool('memorySaver', enabled);
+  }
+
   void checkMemorySaver() {
+    _memorySaverTimer?.cancel();
+    if (!data.memorySaver || tabs.length <= 2) return;
+    _memorySaverTimer = Timer(
+      const Duration(milliseconds: 350),
+      _suspendIdleTabs,
+    );
+  }
+
+  void _suspendIdleTabs() {
     if (!data.memorySaver || tabs.length <= 2) return;
     final now = DateTime.now();
     final active = current;
@@ -1033,6 +1078,7 @@ class BrowserController extends ChangeNotifier {
           tab != secondary &&
           tab.initialization != null &&
           !tab.isPinned &&
+          !tab.hasAudio &&
           !tab.isSuspended &&
           tab.address != null) {
         if (now.difference(tab.lastAccessed).inMinutes >= 25) {
@@ -1091,10 +1137,10 @@ class BrowserController extends ChangeNotifier {
 
     // PiP automático ao sair da aba com vídeo e desativação ao voltar para a página
     if (data.autoPiPEnabled) {
-      if (leavingTab.initialization != null && leavingTab.address != null) {
+      if (leavingTab.hasEngine && leavingTab.address != null) {
         unawaited(_pictureInPicture.enterPiP(leavingTab.engine));
       }
-      if (enteringTab.initialization != null && enteringTab.address != null) {
+      if (enteringTab.hasEngine && enteringTab.address != null) {
         unawaited(_pictureInPicture.exitPiP(enteringTab.engine));
       }
     }
@@ -1117,7 +1163,8 @@ class BrowserController extends ChangeNotifier {
     if (index < 0 || index >= tabs.length) return;
     final wasSelected = index == selected;
     final closed = tabs.removeAt(index);
-    if (closed.initialization != null && closed.address != null) {
+    _closePrivateTab(closed);
+    if (!closed.isIncognito && closed.hasEngine && closed.address != null) {
       unawaited(_pictureInPicture.exitPiP(closed.engine));
     }
     if (closed.address != null && !closed.isIncognito) {
@@ -1166,6 +1213,9 @@ class BrowserController extends ChangeNotifier {
   void closeOtherTabs(int keepIndex) {
     if (keepIndex < 0 || keepIndex >= tabs.length) return;
     final keepTab = tabs[keepIndex];
+    for (final tab in tabs.where((tab) => tab != keepTab)) {
+      _closePrivateTab(tab);
+    }
     tabs.retainWhere((t) => t == keepTab);
     selected = 0;
     _reconcileSplit();
@@ -1178,6 +1228,9 @@ class BrowserController extends ChangeNotifier {
 
   void closeTabsToTheRight(int fromIndex) {
     if (fromIndex < 0 || fromIndex >= tabs.length - 1) return;
+    for (final tab in tabs.skip(fromIndex + 1)) {
+      _closePrivateTab(tab);
+    }
     tabs.removeRange(fromIndex + 1, tabs.length);
     if (selected >= tabs.length) selected = tabs.length - 1;
     _reconcileSplit();
@@ -1280,9 +1333,11 @@ class BrowserController extends ChangeNotifier {
       }
     } on Exception {
       if (!tabs.contains(tab) || tab.address != uri.toString()) return;
-      tab.error = 'Não foi possível abrir este endereço.';
+      tab.error = tab.isIncognito && !tab.hasEngine
+          ? 'A navegação anônima isolada não está disponível neste motor.'
+          : 'Não foi possível abrir este endereço.';
       tab.progress = 100;
-      activeTabProgressNotifier.value = 100;
+      if (identical(current, tab)) _syncActiveNotifiers();
       _update(tab);
     }
   }
@@ -1441,7 +1496,10 @@ class BrowserController extends ChangeNotifier {
   // ECONOMIZADOR DE MEMÓRIA (TAB SUSPEND)
   // -------------------------------------------------------------
   Future<void> suspendTab(BrowserTab tab) async {
-    if (tab == current ||
+    if (!tabs.contains(tab) ||
+        tab == current ||
+        tab == secondaryTab ||
+        tab.hasAudio ||
         tab.isSuspended ||
         tab.address == null ||
         tab.initialization == null) {
@@ -1451,6 +1509,12 @@ class BrowserController extends ChangeNotifier {
     // Parar de carregar e limpar cache de rendering
     try {
       await tab.engine.stopLoading();
+      if (!tabs.contains(tab) ||
+          !tab.isSuspended ||
+          tab == current ||
+          tab == secondaryTab) {
+        return;
+      }
       await tab.engine.loadHtmlString('''
         <!DOCTYPE html>
         <html>
@@ -1460,8 +1524,10 @@ class BrowserController extends ChangeNotifier {
         </body>
         </html>
       ''');
-    } catch (_) {}
-    notifyListeners();
+    } catch (_) {
+      tab.isSuspended = false;
+    }
+    _update(tab);
   }
 
   Future<void> resumeTab(BrowserTab tab) async {
@@ -1653,7 +1719,7 @@ class BrowserController extends ChangeNotifier {
     (function() {
       var s = document.getElementById('__dart_browser_filter__') || document.createElement('style');
       s.id = '__dart_browser_filter__';
-      s.textContent = 'html { filter: invert(90%) hue-rotate(180deg) !important; background-color: #121212 !important; } img, video, canvas, svg, [style*="background-image"] { filter: invert(100%) hue-rotate(180deg) !important; }';
+      s.textContent = 'html { filter: invert(100%) hue-rotate(180deg) !important; background-color: #fff !important; } img, video, canvas, svg, [style*="background-image"] { filter: invert(100%) hue-rotate(180deg) !important; }';
       if (!s.parentNode && document.head) document.head.appendChild(s);
     })();
   ''';
@@ -1759,6 +1825,7 @@ class BrowserController extends ChangeNotifier {
 
       final type = decoded['type'] as String?;
       if (type == 'install_webstore') {
+        if (tab == null || tab.isIncognito || !tabs.contains(tab)) return;
         final extId = decoded['extensionId'] as String?;
         if (extId != null && extId.isNotEmpty) {
           unawaited(installExtensionFromWebStore(extId));
@@ -1999,8 +2066,24 @@ class BrowserController extends ChangeNotifier {
     })();
   """;
 
+  void _closePrivateTab(BrowserTab tab) {
+    final session = tab.privateSession;
+    if (session == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await session.close();
+      } catch (error) {
+        debugPrint('Falha ao encerrar a sessão anônima: $error');
+      }
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
   @override
   void dispose() {
+    for (final tab in tabs) {
+      _closePrivateTab(tab);
+    }
     localeNotifier.dispose();
     themeNotifier.dispose();
     accentNotifier.dispose();
@@ -2009,6 +2092,7 @@ class BrowserController extends ChangeNotifier {
     forceWebDarkNotifier.dispose();
     fullScreenNotifier.dispose();
     _sessionDebounceTimer?.cancel();
+    _memorySaverTimer?.cancel();
     splitRatioNotifier.dispose();
     splitScreenNotifier.dispose();
     linkContextNotifier.dispose();

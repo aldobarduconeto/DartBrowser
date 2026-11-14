@@ -896,7 +896,7 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                                         width: 1,
                                       ),
                               ),
-                              clipBehavior: Clip.antiAlias,
+                              clipBehavior: Clip.hardEdge,
                               child: Stack(
                                 key: _viewportKey,
                                 fit: StackFit.expand,
@@ -923,43 +923,45 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                                               ? totalWidth - leftWidth - 6.0
                                               : 0.0;
 
+                                          final mountedTabs = [
+                                            for (final item in browser.tabs)
+                                              if (identical(item, tab) ||
+                                                  (!browser.data.memorySaver &&
+                                                      item.hasEngine &&
+                                                      item.address != null &&
+                                                      !item.isSuspended &&
+                                                      (!isSplit ||
+                                                          item !=
+                                                              browser
+                                                                  .secondaryTab)))
+                                                item,
+                                          ];
                                           return Row(
                                             children: [
                                               SizedBox(
                                                 width: leftWidth,
                                                 child: IndexedStack(
-                                                  index: browser.selected,
                                                   sizing: StackFit.expand,
+                                                  index: mountedTabs.indexOf(
+                                                    tab,
+                                                  ),
                                                   children: [
                                                     for (final item
-                                                        in browser.tabs)
+                                                        in mountedTabs)
                                                       KeyedSubtree(
                                                         key: ObjectKey(item),
                                                         child:
-                                                            isSplit &&
-                                                                identical(
-                                                                  item,
-                                                                  browser
-                                                                      .secondaryTab,
-                                                                )
-                                                            ? const SizedBox.shrink()
-                                                            : item.address ==
-                                                                      null ||
-                                                                  item.initialization ==
-                                                                      null
-                                                            ? (identical(
-                                                                    item,
-                                                                    tab,
-                                                                  )
-                                                                  ? StartPage(
-                                                                      browser:
-                                                                          browser,
-                                                                      onSubmit:
-                                                                          submit,
-                                                                      onShowSettings:
-                                                                          showSettings,
-                                                                    )
-                                                                  : const SizedBox.shrink())
+                                                            item.address ==
+                                                                    null ||
+                                                                !item.hasEngine
+                                                            ? StartPage(
+                                                                browser:
+                                                                    browser,
+                                                                onSubmit:
+                                                                    submit,
+                                                                onShowSettings:
+                                                                    showSettings,
+                                                              )
                                                             : WebViewWidget(
                                                                 controller:
                                                                     item.engine,
@@ -1017,10 +1019,13 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                                                     children: [
                                                       Positioned.fill(
                                                         child:
-                                                            browser
+                                                            (browser
+                                                                        .secondaryTab!
+                                                                        .address ==
+                                                                    null ||
+                                                                !browser
                                                                     .secondaryTab!
-                                                                    .address ==
-                                                                null
+                                                                    .hasEngine)
                                                             ? StartPage(
                                                                 browser:
                                                                     browser,

@@ -25,8 +25,13 @@ class StartPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final data = browser.data;
-    final links = {if (data.home != null) data.home!, ...data.favorites};
-    final recent = browser.savesHistory && browser.showStartRecent
+    final links = browser.current.isIncognito
+        ? const <String>{}
+        : {if (data.home != null) data.home!, ...data.favorites};
+    final recent =
+        !browser.current.isIncognito &&
+            browser.savesHistory &&
+            browser.showStartRecent
         ? data.history
               .where(
                 (url) => !browser.showStartFavorites || !links.contains(url),
@@ -51,14 +56,26 @@ class StartPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Image.asset(
-                      'assets/app_icon.png',
-                      width: 48,
-                      height: 48,
-                      cacheWidth: 144,
-                      semanticLabel: 'Dart Browser',
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.primaryContainer.withValues(alpha: .35),
+                      border: Border.all(
+                        color: colors.primary.withValues(alpha: .22),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.asset(
+                          'assets/app_icon.png',
+                          width: 48,
+                          height: 48,
+                          cacheWidth: 144,
+                          semanticLabel: 'Dart Browser',
+                        ),
+                      ),
                     ),
                   ),
                 ),

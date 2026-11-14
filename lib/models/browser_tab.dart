@@ -11,7 +11,16 @@ class BrowserTab {
       lastAccessed = DateTime.now();
 
   final String id;
-  late final engine = WebViewController();
+  WebViewController? _regularEngine;
+  WebViewSession? privateSession;
+
+  WebViewController get engine => isIncognito
+      ? (privateSession?.controller ??
+            (throw StateError('Sessão privada indisponível.')))
+      : (_regularEngine ??= WebViewController());
+
+  bool get hasEngine =>
+      isIncognito ? privateSession != null : _regularEngine != null;
   final bool isIncognito;
 
   bool isPinned;

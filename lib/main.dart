@@ -11,10 +11,22 @@ import 'l10n/browser_locale.dart';
 import 'views/browser_view.dart';
 import 'views/welcome_page.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
   final data = BrowserData(await SharedPreferences.getInstance());
-  final browser = BrowserController(data);
+  var privateWindow = arguments.contains('--private-window');
+  if (defaultTargetPlatform == TargetPlatform.macOS) {
+    try {
+      privateWindow =
+          privateWindow ||
+          (await const MethodChannel('dart_browser/window')
+                  .invokeMethod<bool>('isPrivateWindow') ??
+              false);
+    } on MissingPluginException {
+      // The command-line flag remains available on other desktop runners.
+    }
+  }
+  final browser = BrowserController(data, privateWindow: privateWindow);
   String? startupError;
   if (WebViewPlatform.instance == null) {
     startupError = 'O motor de navegação não foi inicializado.';
@@ -36,8 +48,12 @@ Future<void> main() async {
           : 'Não foi possível iniciar o WebView2 pela pasta selecionada.';
     }
   }
-  if (startupError == null && browser.hasCompletedWelcome) {
-    browser.restoreSession();
+  if (startupError == null) {
+    if (privateWindow) {
+      browser.addIncognitoTab();
+    } else if (browser.hasCompletedWelcome) {
+      browser.restoreSession();
+    }
   }
   var isTv = false;
   if (defaultTargetPlatform == TargetPlatform.android) {
@@ -73,7 +89,8 @@ class DartBrowser extends StatefulWidget {
 
 class _DartBrowserState extends State<DartBrowser> {
   BrowserController get browser => widget.browser;
-  late bool _showWelcome = !browser.hasCompletedWelcome;
+  late bool _showWelcome =
+      !browser.privateWindow && !browser.hasCompletedWelcome;
   bool _resetRuntime = false;
 
   Future<void> resetRuntime() async {

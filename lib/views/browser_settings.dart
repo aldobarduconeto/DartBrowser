@@ -416,14 +416,41 @@ class _BrowserSettingsState extends State<BrowserSettings> {
 
   Widget section(BuildContext context, String title, List<Widget> options) =>
       Card(
+        elevation: 0,
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            browser.cornerRadiusNotifier.value,
+          ),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant
+                .withValues(alpha: .45),
+          ),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium,
+              child: Row(
+                children: [
+                  Container(
+                    width: 3,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                ],
               ),
             ),
             ...options,
@@ -463,11 +490,11 @@ class _BrowserSettingsState extends State<BrowserSettings> {
       listenable: browser,
       builder: (context, _) => Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
+          constraints: const BoxConstraints(maxWidth: 640),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
             children: [
-              LanguageTile(browser: browser),
+              section(context, 'Idioma', [LanguageTile(browser: browser)]),
               section(context, 'Navegação', [
                 SearchEngineTile(browser: browser),
                 ListTile(
@@ -500,10 +527,7 @@ class _BrowserSettingsState extends State<BrowserSettings> {
                     'Bloqueia banners, popups e anúncios invasivos, colapsando espaços vazios.',
                   ),
                   value: browser.data.adBlockEnabled,
-                  onChanged: (val) {
-                    browser.toggleAdBlock(val);
-                    setState(() {});
-                  },
+                  onChanged: browser.toggleAdBlock,
                 ),
                 SwitchListTile(
                   secondary: const Icon(
@@ -515,10 +539,7 @@ class _BrowserSettingsState extends State<BrowserSettings> {
                     'Impede rastreadores de telemetria, beacons e pixels de registrar sua navegação.',
                   ),
                   value: browser.data.antiTrackingEnabled,
-                  onChanged: (val) {
-                    browser.toggleAntiTracking(val);
-                    setState(() {});
-                  },
+                  onChanged: browser.toggleAntiTracking,
                 ),
                 SwitchListTile(
                   secondary: const Icon(
@@ -530,10 +551,7 @@ class _BrowserSettingsState extends State<BrowserSettings> {
                     'Neutraliza técnicas de identificação única via Canvas e Áudio sem quebrar os sites.',
                   ),
                   value: browser.data.antiFingerprintEnabled,
-                  onChanged: (val) {
-                    browser.toggleAntiFingerprint(val);
-                    setState(() {});
-                  },
+                  onChanged: browser.toggleAntiFingerprint,
                 ),
                 SwitchListTile(
                   secondary: const Icon(
@@ -545,10 +563,7 @@ class _BrowserSettingsState extends State<BrowserSettings> {
                     'Remove identificadores de clique e rastreamento das URLs (utm_*, fbclid, gclid, etc.).',
                   ),
                   value: browser.data.stripTrackingParams,
-                  onChanged: (val) {
-                    browser.toggleStripTrackingParams(val);
-                    setState(() {});
-                  },
+                  onChanged: browser.toggleStripTrackingParams,
                 ),
                 ListTile(
                   leading: const Icon(Icons.rule_folder_outlined),
@@ -568,7 +583,6 @@ class _BrowserSettingsState extends State<BrowserSettings> {
                   trailing: TextButton(
                     onPressed: () {
                       browser.clearBlockStats();
-                      setState(() {});
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Estatísticas de bloqueio zeradas.'),
@@ -585,13 +599,10 @@ class _BrowserSettingsState extends State<BrowserSettings> {
                   secondary: const Icon(Icons.speed_rounded),
                   title: const Text('Economizador de memória'),
                   subtitle: const Text(
-                    'Permite suspender abas inativas para liberar memória RAM e reduzir uso de CPU.',
+                    'Desativado, mantém abas visitadas prontas para alternar. Ativado, reduz a memória usada por abas em segundo plano.',
                   ),
                   value: browser.data.memorySaver,
-                  onChanged: (val) {
-                    setState(() => browser.data.memorySaver = val);
-                    browser.data.preferences.setBool('memorySaver', val);
-                  },
+                  onChanged: browser.setMemorySaver,
                 ),
               ]),
 

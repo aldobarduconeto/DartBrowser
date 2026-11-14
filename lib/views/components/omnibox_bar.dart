@@ -1,3 +1,5 @@
+import 'private_window.dart';
+import 'navigation_surface.dart';
 import '../../l10n/browser_text.dart';
 
 import 'package:flutter/material.dart';
@@ -158,19 +160,10 @@ class OmniboxBar extends StatelessWidget {
                   ),
               child: Container(
                 height: 38,
-                decoration: BoxDecoration(
-                  color: addressFocus.hasFocus
-                      ? colors.surface
-                      : colors.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: tab.isIncognito
-                        ? Colors.purple.withValues(alpha: 0.5)
-                        : addressFocus.hasFocus
-                        ? colors.primary
-                        : colors.outlineVariant.withValues(alpha: 0.24),
-                    width: addressFocus.hasFocus ? 1.5 : 1,
-                  ),
+                decoration: navigationSurface(
+                  colors,
+                  focused: addressFocus.hasFocus,
+                  private: tab.isIncognito,
                 ),
                 child: Row(
                   children: [
@@ -548,6 +541,8 @@ class OmniboxBar extends StatelessWidget {
                   browser.toggleSplitScreen();
                 case 'fullscreen':
                   browser.toggleFullScreen();
+                case 'private_window':
+                  await openPrivateWindow(context, browser);
                 case 'incognito':
                   browser.addIncognitoTab();
                 case 'qr_share':
@@ -623,6 +618,11 @@ class OmniboxBar extends StatelessWidget {
                   ],
                 ),
               ),
+              if (!browser.privateWindow)
+                const PopupMenuItem(
+                  value: 'private_window',
+                  child: Text('Nova janela anônima'),
+                ),
               const PopupMenuItem(
                 value: 'incognito',
                 child: Row(

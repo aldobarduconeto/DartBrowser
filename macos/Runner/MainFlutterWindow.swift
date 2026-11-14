@@ -26,6 +26,8 @@ class MainFlutterWindow: NSWindow {
         return
       }
       switch call.method {
+      case "isPrivateWindow":
+        result(ProcessInfo.processInfo.arguments.contains("--private-window"))
       case "startDragging":
         if let event = NSApp.currentEvent {
           self.performDrag(with: event)

@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/app_icon.png" width="96" alt="Ícone do Dart Browser">
   <h1>Dart Browser</h1>
-  <p>Navegador em Flutter e Dart com grupos de abas, ferramentas de leitura e interface personalizável.</p>
+  <p>Navegador nativo em Flutter e Dart com grupos de abas, ferramentas de leitura e layouts para desktop, tablet, celular e TV.</p>
   <p><a href="#instalação">Instalação</a> · <a href="#como-usar">Como usar</a> · <a href="#configurações">Configurações</a> · <a href="#desenvolvimento">Desenvolvimento</a></p>
 </div>
 
@@ -47,14 +47,26 @@ A barra de endereço abre URLs diretamente e envia termos ao buscador escolhido.
 | Dispositivo | Navegação |
 | --- | --- |
 | **Desktop** | Abas no topo ou nas laterais. A barra de ferramentas pode ser ocultada por inteiro ou por atalho. |
-| **Celular** | Endereço e navegação no rodapé. Toque no contador de abas para criar, alternar ou fechar abas. |
+| **Tablet** | Usa o layout de desktop a partir de 600 dp no lado menor da tela, com barra de endereço no topo. |
+| **Celular** | Barra de endereço em cápsula no rodapé. Toque no contador para criar, alternar ou fechar abas. A opção **Avançar** aparece no menu quando há uma página adiante. |
 | **TV** | Barra de endereço com texto ampliado e foco inicial no seletor de abas para uso com o controle remoto. |
 
 ### Abas e grupos
 
 No desktop, arraste uma aba com o mouse ou pressione e arraste com toque. Solte na primeira ou na segunda metade de outra aba para posicioná-la antes ou depois. Solte no cabeçalho de um grupo para adicioná-la a ele. A área de soltura no fim da barra retira a aba do grupo e a move para o final. O menu **Organizar aba** também permite mover abas entre grupos.
 
-Os grupos podem ter nome, cor e estado recolhido. Você pode duplicar, fixar, silenciar e reabrir abas pelo menu. Quando a restauração de sessão está ativa, o navegador recupera a ordem, os grupos e a aba selecionada. Na restauração, o WebView das abas em segundo plano é criado sob demanda. O economizador de memória pode suspender abas inativas.
+Os grupos podem ter nome, cor e estado recolhido. Você pode duplicar, fixar, silenciar e reabrir abas pelo menu. A tela dividida mostra duas abas lado a lado quando há espaço. Clique com o botão direito ou pressione uma área da página para abrir um menu de contexto. Links recebem ações próprias, e os campos de edição usam os controles do motor quando disponíveis.
+
+### Inicialização e memória
+
+Em **Configurações → Nova aba e inicialização → Ao iniciar**, escolha:
+
+- **Retomar sessão anterior** para recuperar a ordem, os grupos e a aba selecionada.
+- **Abrir nova aba** para começar pela tela de busca.
+- **Abrir página inicial** para carregar o endereço configurado em **Navegação**.
+- **Abrir páginas escolhidas** para carregar uma lista de endereços HTTP ou HTTPS, um por linha. A primeira aba abre de imediato, e as demais carregam quando selecionadas.
+
+Em **Configurações → Desempenho e Economia de Memória**, o modo padrão mantém montadas as visualizações das abas já visitadas para facilitar a troca. As abas restauradas carregam sob demanda até a primeira visita. Com o economizador ativo, o navegador pode suspender abas inativas há pelo menos 25 minutos quando há mais de duas abas. Abas fixadas, com áudio e os painéis da tela dividida ficam fora dessa seleção. O aplicativo não configura um teto fixo de RAM.
 
 ### Biblioteca, leitura e ferramentas
 
@@ -82,7 +94,13 @@ Os grupos podem ter nome, cor e estado recolhido. Você pode duplicar, fixar, si
 
 O escudo oferece bloqueio de anúncios, anti-rastreio, proteção anti-fingerprint, limpeza de parâmetros de URL e exceções por site. A cobertura varia conforme o motor e a página. Use as estatísticas do escudo para consultar os contadores.
 
-Favoritos, notas, lista de leitura e preferências ficam no perfil local. Guias anônimas ficam fora do histórico e da restauração de sessão do aplicativo. O isolamento de cookies e dados de sites depende do perfil do motor. Histórico, cookies e cache podem ser limpos separadamente em **Privacidade e dados**.
+Favoritos, notas, lista de leitura e preferências ficam no perfil local. Histórico, cookies e cache podem ser limpos separadamente em **Privacidade e dados**.
+
+### Navegação anônima
+
+Use **Menu → Nova janela anônima** para abrir uma sessão dedicada. No Windows, Linux e macOS, o navegador solicita uma janela separada. No Android e iOS, o modo abre em uma tela dedicada.
+
+As abas anônimas exigem uma sessão isolada de cookies e armazenamento. Se o motor não fornecer esse recurso, o carregamento é bloqueado. O plugin Android atual oferece privacidade limitada e não atende ao isolamento exigido. As visitas privadas ficam fora do histórico e da restauração de sessão, e a nova aba privada oculta os atalhos de favoritos e sites recentes.
 
 ### Extensões
 

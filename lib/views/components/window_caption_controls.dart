@@ -16,20 +16,43 @@ class WindowCaptionControls extends StatefulWidget {
   State<WindowCaptionControls> createState() => _WindowCaptionControlsState();
 }
 
-class _WindowCaptionControlsState extends State<WindowCaptionControls> {
+class _WindowCaptionControlsState extends State<WindowCaptionControls>
+    with WidgetsBindingObserver {
   bool _isMaximized = false;
   bool _closeHovered = false;
+  int _checkGeneration = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkMaximized();
+  }
+
+  bool _checkScheduled = false;
+
+  @override
+  void didChangeMetrics() {
+    if (_checkScheduled) return;
+    _checkScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkScheduled = false;
+      if (mounted) _checkMaximized();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _checkMaximized() async {
     if (!WindowService.isDesktop) return;
+    final generation = ++_checkGeneration;
     final max = await WindowService.isMaximized();
-    if (mounted && max != _isMaximized) {
+    if (mounted && generation == _checkGeneration && max != _isMaximized) {
       setState(() => _isMaximized = max);
     }
   }
