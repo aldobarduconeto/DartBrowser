@@ -46,52 +46,20 @@ class StartPage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
+            constraints: const BoxConstraints(maxWidth: 680),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 28,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(
-                      browser.cornerRadiusNotifier.value,
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.asset(
+                      'assets/app_icon.png',
+                      width: 48,
+                      height: 48,
+                      cacheWidth: 144,
+                      semanticLabel: 'Dart Browser',
                     ),
-                    border: Border.all(color: colors.outlineVariant),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color.alphaBlend(
-                          colors.primary.withValues(alpha: .16),
-                          colors.surface,
-                        ),
-                        colors.surface,
-                      ],
-                    ),
-                  ),
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 20,
-                    runSpacing: 14,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.asset(
-                          'assets/app_icon.png',
-                          width: 64,
-                          height: 64,
-                          cacheWidth: 192,
-                          excludeFromSemantics: true,
-                        ),
-                      ),
-                      Text(
-                        browserText(context, 'Nova aba'),
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                    ],
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -185,7 +153,7 @@ class StartPage extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
                 // Atalhos rápidos
                 if (browser.showStartFavorites && links.isNotEmpty)
@@ -209,8 +177,8 @@ class StartPage extends StatelessWidget {
                 // Pílulas de Ações Rápidas
                 Wrap(
                   alignment: WrapAlignment.center,
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     ActionChip(
                       avatar: const Icon(Icons.extension_rounded, size: 16),

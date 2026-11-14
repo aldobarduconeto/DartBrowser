@@ -357,6 +357,63 @@ class _BrowserSettingsState extends State<BrowserSettings> {
     );
   }
 
+  Future<void> editStartupPages() async {
+    var input = browser.startupPages.join('\n');
+    final form = GlobalKey<FormState>();
+    final pages = await showDialog<List<String>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Páginas de inicialização'),
+        scrollable: true,
+        content: Form(
+          key: form,
+          child: TextFormField(
+            initialValue: input,
+            minLines: 4,
+            maxLines: 8,
+            decoration: const InputDecoration(
+              labelText: 'Um endereço HTTP ou HTTPS por linha',
+              hintText: 'https://example.org',
+            ),
+            onChanged: (value) => input = value,
+            validator: (value) {
+              final lines = (value ?? '')
+                  .split('\n')
+                  .map((line) => line.trim());
+              for (final line in lines.where((line) => line.isNotEmpty)) {
+                final uri = Uri.tryParse(line);
+                if (uri == null ||
+                    !BrowserData.isWeb(uri) ||
+                    line.contains(RegExp(r'\s'))) {
+                  return 'Revise os endereços informados.';
+                }
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!form.currentState!.validate()) return;
+              final urls = {
+                for (final line in input.split('\n'))
+                  if (line.trim().isNotEmpty) Uri.parse(line.trim()).toString(),
+              };
+              Navigator.pop(context, urls.toList());
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    if (mounted && pages != null) await browser.setStartupPages(pages);
+  }
+
   Widget section(BuildContext context, String title, List<Widget> options) =>
       Card(
         child: Column(
@@ -429,15 +486,6 @@ class _BrowserSettingsState extends State<BrowserSettings> {
                           onPressed: () => browser.setHome(null),
                           icon: const Icon(Icons.close),
                         ),
-                ),
-                SwitchListTile(
-                  secondary: const Icon(Icons.restore),
-                  title: const BrowserText('Restaurar abas ao iniciar'),
-                  subtitle: const Text(
-                    'Salva os endereços e os grupos da sessão.',
-                  ),
-                  value: browser.restoresTabs,
-                  onChanged: browser.setRestoresTabs,
                 ),
               ]),
 
@@ -737,15 +785,32 @@ class _BrowserSettingsState extends State<BrowserSettings> {
                     ),
               ]),
               section(context, 'Nova aba e inicialização', [
-                SwitchListTile(
-                  secondary: const Icon(Icons.home_outlined),
-                  title: const BrowserText('Abrir a página inicial ao iniciar'),
-                  subtitle: const Text(
-                    'Usada quando nenhuma sessão é restaurada.',
+                ListTile(
+                  leading: const Icon(Icons.restore),
+                  title: const Text('Ao iniciar'),
+                  subtitle: DropdownButton<StartupMode>(
+                    isExpanded: true,
+                    value: browser.startupMode,
+                    items: [
+                      for (final mode in StartupMode.values)
+                        DropdownMenuItem(value: mode, child: Text(mode.label)),
+                    ],
+                    onChanged: (mode) {
+                      if (mode != null) browser.setStartupMode(mode);
+                    },
                   ),
-                  value: browser.startsOnHome,
-                  onChanged: browser.setStartsOnHome,
                 ),
+                if (browser.startupMode == StartupMode.pages)
+                  ListTile(
+                    leading: const Icon(Icons.list_alt),
+                    title: const Text('Páginas escolhidas'),
+                    subtitle: Text(
+                      browser.startupPages.isEmpty
+                          ? 'Adicione os endereços para abrir ao iniciar.'
+                          : browser.startupPages.join('\n'),
+                    ),
+                    onTap: editStartupPages,
+                  ),
                 SwitchListTile(
                   secondary: const Icon(Icons.bookmarks_outlined),
                   title: const BrowserText('Mostrar acesso rápido na nova aba'),

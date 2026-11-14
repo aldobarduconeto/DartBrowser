@@ -6,9 +6,7 @@ class MainFlutterWindow: NSWindow {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
-    self.setFrame(windowFrame, display: true)
-
-    RegisterGeneratedPlugins(registry: flutterViewController)
+    self.setFrame(windowFrame, display: false)
 
     // Configura a janela sem barra de título nativa clássica (estilo Opera/Chrome/Edge no macOS)
     self.titleVisibility = .hidden
@@ -16,12 +14,17 @@ class MainFlutterWindow: NSWindow {
     self.styleMask.insert(.fullSizeContentView)
     self.isOpaque = false
 
+    RegisterGeneratedPlugins(registry: flutterViewController)
+
     let channel = FlutterMethodChannel(
       name: "dart_browser/window",
       binaryMessenger: flutterViewController.engine.binaryMessenger
     )
     channel.setMethodCallHandler { [weak self] (call, result) in
-      guard let self = self else { return }
+      guard let self = self else {
+        result(FlutterError(code: "window_closed", message: "Window is unavailable", details: nil))
+        return
+      }
       switch call.method {
       case "startDragging":
         if let event = NSApp.currentEvent {

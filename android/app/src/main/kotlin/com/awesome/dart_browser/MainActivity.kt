@@ -10,11 +10,12 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private var pictureInPictureChannel: MethodChannel? = null
+    private var deviceChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dart_browser/device")
-            .setMethodCallHandler { call, result ->
+        deviceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dart_browser/device").apply {
+            setMethodCallHandler { call, result ->
                 if (call.method == "isTv") {
                     val mode = resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
                     result.success(mode == Configuration.UI_MODE_TYPE_TELEVISION)
@@ -22,6 +23,7 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
+        }
         pictureInPictureChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "dart_browser/picture_in_picture"
@@ -37,8 +39,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dart_browser/device")
-            .setMethodCallHandler(null)
+        deviceChannel?.setMethodCallHandler(null)
+        deviceChannel = null
         pictureInPictureChannel?.setMethodCallHandler(null)
         pictureInPictureChannel = null
         super.cleanUpFlutterEngine(flutterEngine)

@@ -17,14 +17,14 @@ class UserAgentDialog extends StatelessWidget {
       icon: Icons.computer_rounded,
     ),
     (
-      name: 'iPhone 15 Pro (iOS Safari)',
+      name: 'iPhone 15 Pro',
       description: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X)',
       ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
       icon: Icons.phone_iphone_rounded,
     ),
     (
-      name: 'Google Pixel 8 (Android Chrome)',
-      description: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/123.0',
+      name: 'Google Pixel 8',
+      description: 'Perfil móvel do Android',
       ua: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.80 Mobile Safari/537.36',
       icon: Icons.phone_android_rounded,
     ),
@@ -35,7 +35,7 @@ class UserAgentDialog extends StatelessWidget {
       icon: Icons.tablet_mac_rounded,
     ),
     (
-      name: 'macOS (Safari Desktop)',
+      name: 'macOS · Desktop',
       description: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
       ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
       icon: Icons.laptop_mac_rounded,

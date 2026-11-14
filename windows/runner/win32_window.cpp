@@ -205,11 +205,15 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
     }
     case WM_SIZE: {
-      RECT rect = GetClientArea();
-      if (child_content_ != nullptr) {
-        // Size and position the child window.
-        MoveWindow(child_content_, rect.left, rect.top, rect.right - rect.left,
-                   rect.bottom - rect.top, TRUE);
+      if (child_content_ != nullptr && wparam != SIZE_MINIMIZED) {
+        RECT frame = GetClientArea();
+        const LONG width = frame.right - frame.left;
+        const LONG height = frame.bottom - frame.top;
+        RECT child{};
+        if (!GetClientRect(child_content_, &child) ||
+            child.right != width || child.bottom != height) {
+          MoveWindow(child_content_, 0, 0, width, height, TRUE);
+        }
       }
       return 0;
     }

@@ -143,49 +143,49 @@ class BrowserController extends ChangeNotifier {
   // TELA DIVIDIDA (SPLIT SCREEN / DUAL VIEW)
   final splitScreenNotifier = ValueNotifier<bool>(false);
   final splitRatioNotifier = ValueNotifier<double>(0.5);
-  int? secondaryTabIndex;
+  BrowserTab? _secondaryTab;
 
   void setSplitRatio(double ratio) {
     final clamped = ratio.clamp(0.2, 0.8);
     if ((splitRatioNotifier.value - clamped).abs() > 0.005) {
       splitRatioNotifier.value = clamped;
-      notifyListeners();
     }
   }
 
   BrowserTab? get secondaryTab {
-    if (secondaryTabIndex == null ||
-        secondaryTabIndex! < 0 ||
-        secondaryTabIndex! >= tabs.length) {
-      return null;
-    }
-    return tabs[secondaryTabIndex!];
+    final tab = _secondaryTab;
+    return tab != null && tabs.contains(tab) && tab != current ? tab : null;
   }
 
   void toggleSplitScreen([int? secondIndex]) {
     if (splitScreenNotifier.value) {
-      splitScreenNotifier.value = false;
-      secondaryTabIndex = null;
-    } else {
-      if (tabs.length < 2) {
-        addTab();
-        secondaryTabIndex = tabs.length - 1;
-      } else {
-        secondaryTabIndex = secondIndex ?? (selected == 0 ? 1 : 0);
-      }
-      final second = secondaryTab;
-      if (second != null) unawaited(_loadDeferred(second));
-      splitScreenNotifier.value = true;
+      closeSplitScreen();
+      return;
     }
+    final active = current;
+    if (tabs.length == 1) {
+      addTab();
+      _secondaryTab = current;
+      selected = tabs.indexOf(active);
+      _syncActiveNotifiers();
+      _saveSession();
+    } else {
+      final requested = secondIndex ?? -1;
+      _secondaryTab =
+          requested >= 0 && requested < tabs.length && requested != selected
+          ? tabs[requested]
+          : tabs.firstWhere((tab) => tab != active);
+    }
+    unawaited(_loadDeferred(_secondaryTab!));
+    splitScreenNotifier.value = true;
     notifyListeners();
   }
 
   void setSecondaryTab(int index) {
-    if (index >= 0 && index < tabs.length && index != selected) {
-      secondaryTabIndex = index;
-      unawaited(_loadDeferred(tabs[index]));
-      notifyListeners();
-    }
+    if (index < 0 || index >= tabs.length || index == selected) return;
+    _secondaryTab = tabs[index];
+    unawaited(_loadDeferred(_secondaryTab!));
+    notifyListeners();
   }
 
   Future<void> openInSecondaryTab(String input) async {
@@ -196,7 +196,7 @@ class BrowserController extends ChangeNotifier {
 
   void closeSplitScreen() {
     splitScreenNotifier.value = false;
-    secondaryTabIndex = null;
+    _secondaryTab = null;
     notifyListeners();
   }
 
@@ -227,7 +227,6 @@ class BrowserController extends ChangeNotifier {
       data.preferences.getBool('showStartFavorites') ?? true;
   bool get showStartRecent =>
       data.preferences.getBool('showStartRecent') ?? true;
-  bool get startsOnHome => data.preferences.getBool('startsOnHome') ?? false;
 
   void setSidebarOnRight(bool value) =>
       _setDisplayOption('sidebarOnRight', value);
@@ -235,7 +234,6 @@ class BrowserController extends ChangeNotifier {
       _setDisplayOption('showStartFavorites', value);
   void setShowStartRecent(bool value) =>
       _setDisplayOption('showStartRecent', value);
-  void setStartsOnHome(bool value) => _setDisplayOption('startsOnHome', value);
 
   void _setDisplayOption(String key, bool value) {
     unawaited(data.preferences.setBool(key, value));
@@ -290,7 +288,6 @@ class BrowserController extends ChangeNotifier {
   bool get compactTabs => data.preferences.getBool('compactTabs') ?? false;
   bool get canReopenTab => _closed.isNotEmpty;
   bool get savesHistory => data.preferences.getBool('savesHistory') ?? true;
-  bool get restoresTabs => data.preferences.getBool('restoresTabs') ?? true;
 
   // -------------------------------------------------------------
   // COMPLEMENTOS E EXTENSÕES
@@ -365,7 +362,9 @@ class BrowserController extends ChangeNotifier {
       }
       return addon;
     } catch (e) {
-      debugPrint('[DartBrowser] Erro ao instalar extensão do Web Store ($cleanId): $e');
+      debugPrint(
+        '[DartBrowser] Erro ao instalar extensão do Web Store ($cleanId): $e',
+      );
       rethrow;
     }
   }
@@ -527,14 +526,14 @@ class BrowserController extends ChangeNotifier {
       return;
     }
     final active = current;
-    final secondary = secondaryTab;
+
     tabs.remove(tab);
     tab.group = ungroup ? null : anchor.group;
     final anchorIndex = tabs.indexOf(anchor);
     final insertIndex = (anchorIndex + (after ? 1 : 0)).clamp(0, tabs.length);
     tabs.insert(insertIndex, tab);
     selected = tabs.indexOf(active);
-    secondaryTabIndex = secondary == null ? null : tabs.indexOf(secondary);
+
     _saveSession();
     notifyListeners();
   }
@@ -577,16 +576,37 @@ class BrowserController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setRestoresTabs(bool value) async {
-    await data.preferences.setBool('restoresTabs', value);
-    if (value) {
+  StartupMode get startupMode {
+    final saved = data.preferences.getString('startupMode');
+    return StartupMode.values.firstWhere(
+      (mode) => mode.name == saved,
+      orElse: () => (data.preferences.getBool('restoresTabs') ?? true)
+          ? StartupMode.session
+          : (data.preferences.getBool('startsOnHome') ?? false)
+          ? StartupMode.home
+          : StartupMode.blank,
+    );
+  }
+
+  List<String> get startupPages =>
+      data.preferences.getStringList('startupPages') ?? const [];
+
+  Future<void> setStartupMode(StartupMode mode) async {
+    await data.preferences.setString('startupMode', mode.name);
+    if (mode == StartupMode.session) {
       _saveSession();
     } else {
+      _sessionDebounceTimer?.cancel();
       _lastSavedSession = null;
       await data.preferences.remove('groupedSession');
       await data.preferences.remove('session');
       await data.preferences.remove('selectedTab');
     }
+    notifyListeners();
+  }
+
+  Future<void> setStartupPages(List<String> pages) async {
+    await data.preferences.setStringList('startupPages', pages);
     notifyListeners();
   }
 
@@ -603,8 +623,20 @@ class BrowserController extends ChangeNotifier {
   }
 
   void restoreSession() {
-    if (!restoresTabs) {
-      addTab(address: startsOnHome ? data.home : null);
+    if (startupMode != StartupMode.session) {
+      final pages = startupMode == StartupMode.pages
+          ? startupPages
+          : const <String>[];
+      if (pages.isEmpty) {
+        addTab(address: startupMode == StartupMode.home ? data.home : null);
+      } else {
+        for (final address in pages) {
+          tabs.add(BrowserTab()..address = address);
+        }
+        _activateCurrent();
+        _syncActiveNotifiers();
+        notifyListeners();
+      }
       return;
     }
     final legacy = data.preferences.getStringList('session') ?? [];
@@ -639,7 +671,11 @@ class BrowserController extends ChangeNotifier {
       }
     }
     if (saved.isEmpty) {
-      addTab(address: startsOnHome ? data.home : null);
+      addTab(
+        address: (data.preferences.getBool('startsOnHome') ?? false)
+            ? data.home
+            : null,
+      );
       return;
     }
     for (final entry in saved) {
@@ -754,8 +790,8 @@ class BrowserController extends ChangeNotifier {
           if (request.url.contains('clients2.google.com/service/update2/crx') ||
               (request.url.endsWith('.crx') &&
                   !request.url.startsWith('file:'))) {
-            final extMatch =
-                RegExp(r'[?&]x=id%3D([a-z]{32})').firstMatch(request.url);
+            final extMatch = RegExp(r'[?&]x=id%3D([a-z]{32})')
+                .firstMatch(request.url);
             final extId = extMatch?.group(1);
             if (extId != null) {
               unawaited(installExtensionFromWebStore(extId));
@@ -831,12 +867,14 @@ class BrowserController extends ChangeNotifier {
         },
         onUrlChange: (change) {
           final uri = Uri.tryParse(change.url ?? '');
-          if (tabs.contains(tab) && uri != null && BrowserData.isWeb(uri)) {
+          if (tabs.contains(tab) &&
+              change.url != tab.address &&
+              uri != null &&
+              BrowserData.isWeb(uri)) {
             tab.address = change.url;
             tab.touch();
             if (!tab.isIncognito) _saveSession();
             _update(tab);
-            tab.engine.runJavaScript(_jsLinkContextScript);
           }
         },
         onProgress: (progress) {
@@ -908,7 +946,8 @@ class BrowserController extends ChangeNotifier {
                   host: tab.host,
                 ),
               ),
-            tab.engine.runJavaScript(_jsLinkContextScript),
+            if (contextScript == null)
+              tab.engine.runJavaScript(_jsLinkContextScript),
           ]);
         },
       ),
@@ -955,9 +994,10 @@ class BrowserController extends ChangeNotifier {
   Timer? _sessionDebounceTimer;
 
   void _saveSession() {
-    if (!restoresTabs) return;
+    if (startupMode != StartupMode.session) return;
     _sessionDebounceTimer?.cancel();
     _sessionDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (startupMode != StartupMode.session || tabs.isEmpty) return;
       final nonIncognitoTabs = tabs.where((t) => !t.isIncognito).toList();
       final nonIncognitoSelected = nonIncognitoTabs.indexOf(current);
       final session = jsonEncode({
@@ -1026,6 +1066,7 @@ class BrowserController extends ChangeNotifier {
     final leavingTab = current;
     selected = index;
     final enteringTab = current;
+    if (identical(enteringTab, _secondaryTab)) _secondaryTab = leavingTab;
 
     // PiP automático ao sair da aba com vídeo e desativação ao voltar para a página
     if (data.autoPiPEnabled) {
@@ -1063,12 +1104,15 @@ class BrowserController extends ChangeNotifier {
       if (_closed.length > 25) _closed.removeAt(0);
     }
     if (tabs.isEmpty) {
+      _secondaryTab = null;
+      splitScreenNotifier.value = false;
       addTab();
       return;
     }
     if (selected > index || selected == tabs.length) selected--;
 
-    if (wasSelected) unawaited(_loadDeferred(current));
+    _reconcileSplit();
+    if (wasSelected) _activateCurrent();
     if (wasSelected &&
         data.autoPiPEnabled &&
         current.initialization != null &&
@@ -1082,12 +1126,29 @@ class BrowserController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _activateCurrent() {
+    current.touch();
+    if (current.isSuspended) {
+      unawaited(resumeTab(current));
+    } else {
+      unawaited(_loadDeferred(current));
+    }
+  }
+
+  void _reconcileSplit() {
+    if (splitScreenNotifier.value && secondaryTab == null) {
+      _secondaryTab = null;
+      splitScreenNotifier.value = false;
+    }
+  }
+
   void closeOtherTabs(int keepIndex) {
     if (keepIndex < 0 || keepIndex >= tabs.length) return;
     final keepTab = tabs[keepIndex];
     tabs.retainWhere((t) => t == keepTab);
     selected = 0;
-    unawaited(_loadDeferred(current));
+    _reconcileSplit();
+    _activateCurrent();
     _syncActiveNotifiers();
     checkMemorySaver();
     _saveSession();
@@ -1098,7 +1159,8 @@ class BrowserController extends ChangeNotifier {
     if (fromIndex < 0 || fromIndex >= tabs.length - 1) return;
     tabs.removeRange(fromIndex + 1, tabs.length);
     if (selected >= tabs.length) selected = tabs.length - 1;
-    unawaited(_loadDeferred(current));
+    _reconcileSplit();
+    _activateCurrent();
     _syncActiveNotifiers();
     checkMemorySaver();
     _saveSession();
@@ -1664,6 +1726,7 @@ class BrowserController extends ChangeNotifier {
         ({String? url, String? text, Offset position, bool isTouch})?
       >(null);
 
+  /// Routes WebView messages and accepts menu requests only from the active tab.
   void _handleLinkMessage(String raw, {BrowserTab? tab}) {
     try {
       String jsonStr = raw;
@@ -1691,16 +1754,26 @@ class BrowserController extends ChangeNotifier {
         return;
       }
 
+      if (type != 'link' || tabs.isEmpty || (tab != null && tab != current)) {
+        return;
+      }
       final url = decoded['url'] as String?;
       if (url != null && !BrowserData.isWeb(Uri.tryParse(url) ?? Uri())) {
         return;
       }
       final text = decoded['text'] as String?;
-      final x = (decoded['x'] as num?)?.toDouble() ?? 100.0;
-      final y = (decoded['y'] as num?)?.toDouble() ?? 100.0;
+      final x = (decoded['x'] as num?)?.toDouble();
+      final y = (decoded['y'] as num?)?.toDouble();
       final isTouch = decoded['isTouch'] as bool? ?? false;
 
-      if (!x.isFinite || !y.isFinite || x < 0 || y < 0) return;
+      if (x == null ||
+          y == null ||
+          !x.isFinite ||
+          !y.isFinite ||
+          x < 0 ||
+          y < 0) {
+        return;
+      }
       linkContextNotifier.value = (
         url: url,
         text: text,
@@ -1773,6 +1846,7 @@ class BrowserController extends ChangeNotifier {
             fullUrl = a.href || null;
           }
         }
+        if (fullUrl && !/^https?:/i.test(fullUrl)) fullUrl = null;
         postToDart({
           type: 'link',
           url: fullUrl,
@@ -1783,63 +1857,70 @@ class BrowserController extends ChangeNotifier {
         });
       }
 
-      // 1. Clique com botão direito (Desktop contextmenu)
-      document.addEventListener('contextmenu', function(e) {
-        var target = e.target;
-        if (!target) return;
-        var targetEl = target.nodeType === 1 ? target : target.parentElement;
-        if (!targetEl) return;
-
-        // Se o clique for em campo editável com texto, manter comportamento nativo
-        if (targetEl.closest && targetEl.closest('input, textarea, [contenteditable="true"]')) return;
-
-        var a = findLink(targetEl, e);
-
-        e.preventDefault();
-        e.stopPropagation();
-        emitLinkEvent({ clientX: e.clientX, clientY: e.clientY }, a, false);
-      }, true);
-
-      // 2. Toque longo no link ou página (Móvel / Touchscreen)
-      var touchTimer = null;
-      var touchTarget = null;
-      var touchCoords = { x: 0, y: 0 };
-
-      document.addEventListener('touchstart', function(e) {
-        if (!e.touches || e.touches.length !== 1) { cancelTouch(); return; }
-        var touch = e.touches[0];
-        touchCoords = { x: touch.clientX, y: touch.clientY };
-        var target = e.target;
-        var targetEl = target && target.nodeType === 1 ? target : (target ? target.parentElement : null);
-        touchTarget = findLink(targetEl, e);
-
-        if (touchTimer) clearTimeout(touchTimer);
-        touchTimer = setTimeout(function() {
-          if (touchTarget) {
-            emitLinkEvent({ clientX: touchCoords.x, clientY: touchCoords.y }, touchTarget, true);
-            touchTarget = null;
-          }
-        }, 380);
-      }, { passive: true });
-
-      document.addEventListener('touchmove', function(e) {
-        if (!touchTimer || !e.touches || e.touches.length !== 1) { cancelTouch(); return; }
-        var touch = e.touches[0];
-        var dx = Math.abs(touch.clientX - touchCoords.x);
-        var dy = Math.abs(touch.clientY - touchCoords.y);
-        if (dx > 10 || dy > 10) cancelTouch();
-      }, { passive: true });
+      // Track one stationary touch and suppress only the click it produces.
+      var pendingTouch = null;
+      var handledTouch = null;
 
       function cancelTouch() {
-        if (touchTimer) {
-          clearTimeout(touchTimer);
-          touchTimer = null;
-          touchTarget = null;
-        }
+        if (!pendingTouch) return;
+        clearTimeout(pendingTouch.timer);
+        pendingTouch = null;
       }
-      document.addEventListener('touchend', cancelTouch, { passive: true });
-      document.addEventListener('touchcancel', cancelTouch, { passive: true });
 
+      function isEditable(target) {
+        return target instanceof Element &&
+          !!target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
+      }
+
+      function nearTouch(event, touch) {
+        return touch && Date.now() - touch.time < 1500 &&
+          Math.abs(event.clientX - touch.x) <= 24 &&
+          Math.abs(event.clientY - touch.y) <= 24;
+      }
+
+      // Capture before page handlers on the document can intercept the gesture.
+      window.addEventListener('contextmenu', function(e) {
+        if (!e.isTrusted || isEditable(e.composedPath()[0])) return;
+        var isTouch = !!pendingTouch || nearTouch(e, handledTouch) ||
+          e.pointerType === 'touch' || !!e.sourceCapabilities?.firesTouchEvents;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        cancelTouch();
+        if (isTouch && nearTouch(e, handledTouch)) return;
+        if (isTouch) handledTouch = { x: e.clientX, y: e.clientY, time: Date.now() };
+        emitLinkEvent(e, findLink(e.target, e), isTouch);
+      }, true);
+
+      window.addEventListener('touchstart', function(e) {
+        cancelTouch();
+        handledTouch = null;
+        if (!e.isTrusted || e.touches.length !== 1 || isEditable(e.composedPath()[0])) return;
+        var finger = e.touches[0];
+        var gesture = { x: finger.clientX, y: finger.clientY, link: findLink(e.target, e) };
+        gesture.timer = setTimeout(function() {
+          pendingTouch = null;
+          handledTouch = { x: gesture.x, y: gesture.y, time: Date.now() };
+          emitLinkEvent({ clientX: gesture.x, clientY: gesture.y }, gesture.link, true);
+        }, 450);
+        pendingTouch = gesture;
+      }, { capture: true, passive: true });
+
+      window.addEventListener('touchmove', function(e) {
+        if (!pendingTouch) return;
+        var finger = e.touches[0];
+        if (e.touches.length !== 1 ||
+            Math.abs(finger.clientX - pendingTouch.x) > 10 ||
+            Math.abs(finger.clientY - pendingTouch.y) > 10) cancelTouch();
+      }, { capture: true, passive: true });
+      window.addEventListener('touchend', cancelTouch, true);
+      window.addEventListener('touchcancel', cancelTouch, true);
+      window.addEventListener('click', function(e) {
+        if (!e.isTrusted || !nearTouch(e, handledTouch)) return;
+        if (e.pointerType === 'mouse' && !e.sourceCapabilities?.firesTouchEvents) return;
+        handledTouch = null;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }, true);
       // 3. Monitor de Áudio em tempo real na aba
       var lastAudioState = false;
       function checkAudioState() {
@@ -1848,7 +1929,7 @@ class BrowserController extends ChangeNotifier {
           var isPlaying = false;
           for (var i = 0; i < medias.length; i++) {
             var m = medias[i];
-            if (!m.paused && !m.ended && m.currentTime > 0 && !m.muted && (m.volume || 1) > 0) {
+            if (!m.paused && !m.ended && !m.muted && m.volume > 0) {
               isPlaying = true;
               break;
             }
@@ -1864,7 +1945,8 @@ class BrowserController extends ChangeNotifier {
       window.addEventListener('pause', checkAudioState, true);
       window.addEventListener('ended', checkAudioState, true);
       window.addEventListener('volumechange', checkAudioState, true);
-      setInterval(checkAudioState, 2000);
+      window.addEventListener('emptied', checkAudioState, true);
+      checkAudioState();
 
       // 4. Interceptador de Instalação na Chrome Web Store
       if (window.location.hostname.indexOf('chromewebstore.google.com') !== -1) {

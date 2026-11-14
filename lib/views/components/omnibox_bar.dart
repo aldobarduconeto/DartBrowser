@@ -95,7 +95,7 @@ class OmniboxBar extends StatelessWidget {
             : colors.surface,
         border: Border(
           bottom: BorderSide(
-            color: colors.outlineVariant.withValues(alpha: 0.25),
+            color: colors.outlineVariant.withValues(alpha: 0.18),
             width: 1,
           ),
         ),
@@ -159,7 +159,7 @@ class OmniboxBar extends StatelessWidget {
               child: Container(
                 height: 36,
                 decoration: BoxDecoration(
-                  color: colors.surfaceContainerHigh.withValues(alpha: 0.45),
+                  color: colors.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: tab.isIncognito
@@ -448,7 +448,7 @@ class OmniboxBar extends StatelessWidget {
 
           // BOTÃO DE EXTENSÕES
           Tooltip(
-            message: 'Extensões do Chrome',
+            message: 'Extensões',
             child: Stack(
               alignment: Alignment.topRight,
               children: [

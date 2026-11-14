@@ -65,7 +65,8 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
   // -------------------------------------------------------------
 
   Future<void> showUniversalInstallerDialog() async {
-    int installerTab = 0;
+    int installerTab = 3;
+    var enableOnInstall = true;
     var userScriptCode = '';
     var manifestJsonCode = '';
     var scriptName = '';
@@ -143,7 +144,7 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                           ButtonSegment(
                             value: 0,
                             icon: Icon(Icons.javascript_rounded, size: 16),
-                            label: Text('UserScript'),
+                            label: Text('Script'),
                           ),
                           ButtonSegment(
                             value: 1,
@@ -158,7 +159,7 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                           ButtonSegment(
                             value: 3,
                             icon: Icon(Icons.folder_zip_rounded, size: 16),
-                            label: Text('CRX / Web Store'),
+                            label: Text('Pacote'),
                           ),
                         ],
                         selected: {installerTab},
@@ -290,8 +291,8 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                             children: [
                               Text(
                                 isMobile
-                                    ? 'Cole o link da Chrome Web Store, ID ou URL de arquivo .crx/.zip:'
-                                    : 'Informe o caminho de uma pasta, arquivo .crx/.zip ou URL/ID da Chrome Web Store:',
+                                    ? 'Cole o link da loja, o ID ou o endereço de um pacote:'
+                                    : 'Informe uma pasta descompactada ou um pacote ZIP, CRX ou XPI. Você também pode colar um link compatível.',
                                 style: const TextStyle(fontSize: 13),
                               ),
                               const SizedBox(height: 16),
@@ -319,6 +320,13 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                     ),
                   ),
 
+                  SwitchListTile(
+                    dense: true,
+                    title: const Text('Ativar ao adicionar'),
+                    value: enableOnInstall,
+                    onChanged: (value) =>
+                        setDialogState(() => enableOnInstall = value),
+                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
@@ -338,7 +346,7 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                             Icons.download_done_rounded,
                             size: 18,
                           ),
-                          label: const Text('Instalar Agora'),
+                          label: const Text('Adicionar'),
                           onPressed: () async {
                             ChromeExtension? newExt;
                             String? errorMsg;
@@ -376,11 +384,15 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                               } else {
                                 final path = folderPath.trim();
                                 if (path.toLowerCase().endsWith('.crx') ||
-                                    path.toLowerCase().endsWith('.zip')) {
+                                    path.toLowerCase().endsWith('.zip') ||
+                                    path.toLowerCase().endsWith('.xpi')) {
                                   if (path.startsWith('http://') ||
                                       path.startsWith('https://')) {
-                                    newExt = await widget.browser
-                                        .installExtensionFromUrl(path);
+                                    newExt = service.importCrxBytes(
+                                      await ChromeExtensionService.downloadCrxFromUrl(
+                                        path,
+                                      ),
+                                    );
                                   } else {
                                     newExt = await service.importCrxFile(path);
                                   }
@@ -388,12 +400,23 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                                       'chromewebstore.google.com',
                                     ) ||
                                     RegExp(r'^[a-z]{32}$').hasMatch(path)) {
-                                  newExt = await widget.browser
-                                      .installExtensionFromWebStore(path);
+                                  final id =
+                                      RegExp(r'/detail/(?:[^/]+/)?([a-p]{32})')
+                                          .firstMatch(path)
+                                          ?.group(1) ??
+                                      path;
+                                  newExt = service.importCrxBytes(
+                                    await ChromeExtensionService.downloadCrx(
+                                      id,
+                                    ),
+                                  );
                                 } else if (path.startsWith('http://') ||
                                     path.startsWith('https://')) {
-                                  newExt = await widget.browser
-                                      .installExtensionFromUrl(path);
+                                  newExt = service.importCrxBytes(
+                                    await ChromeExtensionService.downloadCrxFromUrl(
+                                      path,
+                                    ),
+                                  );
                                 } else {
                                   newExt = await service.importFolder(path);
                                 }
@@ -418,6 +441,9 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                             }
 
                             if (newExt != null && ctx.mounted && mounted) {
+                              newExt = newExt.copyWith(
+                                enabled: enableOnInstall,
+                              );
                               Navigator.pop(ctx);
                               final existing = browser.addons.indexWhere(
                                 (a) => a.id == newExt!.id,
@@ -435,7 +461,7 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Extensão "${newExt.name}" instalada e ativada com sucesso!',
+                                      'Extensão "${newExt.name}" adicionada.',
                                     ),
                                     backgroundColor: Colors.green.shade800,
                                   ),
@@ -688,7 +714,7 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
               ),
               const SizedBox(width: 12),
               const Text(
-                'Extensões Web',
+                'Extensões',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
               ),
             ],
@@ -697,9 +723,9 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(icon: Icon(Icons.layers_rounded), text: 'Instaladas'),
-            Tab(icon: Icon(Icons.storefront_rounded), text: 'Loja / Galeria'),
-            Tab(icon: Icon(Icons.tune_rounded), text: 'Ferramentas'),
+            Tab(text: 'Instaladas'),
+            Tab(text: 'Galeria'),
+            Tab(text: 'Ferramentas'),
           ],
         ),
         actions: [
@@ -734,7 +760,7 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
       floatingActionButton: FloatingActionButton.extended(
         onPressed: showUniversalInstallerDialog,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Adicionar Extensão'),
+        label: const Text('Adicionar extensão'),
       ),
     );
   }
@@ -802,7 +828,7 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                       const SizedBox(height: 8),
                       TextButton.icon(
                         icon: const Icon(Icons.storefront_rounded),
-                        label: const Text('Explorar a Loja de Extensões'),
+                        label: const Text('Explorar galeria'),
                         onPressed: () => _tabController.animateTo(1),
                       ),
                     ],

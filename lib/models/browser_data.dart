@@ -152,3 +152,13 @@ enum PageVisualFilter {
   final String label;
   final IconData icon;
 }
+
+enum StartupMode {
+  session('Retomar sessão anterior'),
+  blank('Abrir nova aba'),
+  home('Abrir página inicial'),
+  pages('Abrir páginas escolhidas');
+
+  const StartupMode(this.label);
+  final String label;
+}

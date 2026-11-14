@@ -71,10 +71,10 @@ Os grupos podem ter nome, cor e estado recolhido. Você pode duplicar, fixar, si
 
 | Seção | Opções |
 | --- | --- |
-| **Navegação** | Buscador, página inicial e restauração de sessão. |
+| **Navegação** | Buscador e endereço da página inicial. |
 | **Aparência** | Tema Sistema, Claro, Escuro ou OLED, cor de destaque, arredondamento, filtro escuro para sites e posição das abas. |
 | **Barra lateral de ferramentas** | Oculte a barra inteira ou selecione quais atalhos aparecem no desktop. As abas verticais têm seu próprio controle. |
-| **Nova aba e inicialização** | Controle a exibição de favoritos e sites recentes. A página inicial pode abrir quando nenhuma sessão for restaurada. |
+| **Nova aba e inicialização** | Escolha nova aba, sessão anterior, página inicial ou uma lista de endereços. Controle também a exibição de favoritos e sites recentes. |
 | **Desempenho, leitura e mídia** | Economizador de memória, tema e fonte do leitor e PiP automático. |
 | **Idioma** | Escolha o idioma do aplicativo ou siga o sistema. Inglês e espanhol têm tradução parcial dos textos próprios. Outros idiomas dependem dos componentes localizados do Flutter. |
 
@@ -86,7 +86,7 @@ Favoritos, notas, lista de leitura e preferências ficam no perfil local. Guias 
 
 ### Extensões
 
-Em **Menu → Extensões do Chrome**, importe uma pasta descompactada com `manifest.json` e seus arquivos, ative o complemento e recarregue a página. O gerenciador oferece suporte parcial a Manifest V2/V3, scripts e estilos de conteúdo, pop-ups compatíveis e partes das APIs de extensões. A Chrome Web Store, arquivos `.crx` e service workers completos ficam fora da cobertura atual.
+Em **Menu → Extensões → Adicionar extensão**, informe uma pasta descompactada com manifest.json, um pacote ZIP, CRX ou XPI acessível ou um link compatível. Escolha se deseja ativar ao adicionar. O gerenciador oferece suporte parcial a Manifest V2/V3, scripts e estilos de conteúdo, pop-ups compatíveis e partes das APIs de extensões. A compatibilidade depende das APIs exigidas pelo pacote.
 
 ## Atalhos
 

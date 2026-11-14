@@ -66,6 +66,7 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
     }
   }
 
+  /// Maps page coordinates to the viewport and opens one context menu at a time.
   Future<void> _onLinkContext() async {
     final event = browser.linkContextNotifier.value;
     if (event == null || !mounted) return;
@@ -395,7 +396,7 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Extensões do Chrome',
+                                'Extensões',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -776,7 +777,7 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                       ? TextDirection.rtl
                       : TextDirection.ltr,
                   children: [
-                    // Dock lateral de ferramentas estilo Opera GX (no desktop em modo horizontal)
+                    // Dock lateral de ferramentas no desktop
                     if (WindowService.isDesktop &&
                         !isFullScreen &&
                         browser.showToolsDock)
