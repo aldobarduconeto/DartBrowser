@@ -20,7 +20,6 @@ import 'components/start_page.dart';
 import 'components/window_caption_controls.dart';
 import 'components/command_palette_dialog.dart';
 import 'components/web_capture_dialog.dart';
-import 'components/read_aloud_bar.dart';
 import 'components/browser_tools_dock.dart';
 import 'components/browser_bottom_bar.dart';
 
@@ -738,7 +737,6 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
               context,
               browser: browser,
               onSubmit: submit,
-              onStartReadAloud: browser.startReadAloud,
             ),
             // Ctrl+Shift+S: Captura de Tela da Web
             SingleActivator(
@@ -748,19 +746,6 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
               shift: true,
             ): () =>
                 WebCaptureDialog.show(context, browser),
-            // Ctrl+Shift+U: Leitura em Voz Alta
-            SingleActivator(
-              LogicalKeyboardKey.keyU,
-              meta: command,
-              control: !command,
-              shift: true,
-            ): () {
-              if (browser.readAloudService.isActive) {
-                browser.stopReadAloud();
-              } else {
-                browser.startReadAloud();
-              }
-            },
             // ESC: Fechar Localizar na Página
             const SingleActivator(LogicalKeyboardKey.escape): () {
               if (browser.isFindInPageVisible) browser.closeFindInPage();
@@ -882,12 +867,6 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                           if (browser.isFindInPageVisible)
                             FindInPageBar(browser: browser),
 
-                          // BARRA DE LEITURA EM VOZ ALTA (READ ALOUD)
-                          ReadAloudBar(
-                            service: browser.readAloudService,
-                            onClose: browser.stopReadAloud,
-                          ),
-
                           // BANNER DO CHROME WEB STORE
                           if (!isFullScreen &&
                               tab.address?.contains(
@@ -957,18 +936,30 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                                                       KeyedSubtree(
                                                         key: ObjectKey(item),
                                                         child:
-                                                            item.address ==
-                                                                    null ||
-                                                                item.initialization ==
-                                                                    null
-                                                            ? StartPage(
-                                                                browser:
-                                                                    browser,
-                                                                onSubmit:
-                                                                    submit,
-                                                                onShowSettings:
-                                                                    showSettings,
-                                                              )
+                                                            isSplit &&
+                                                                identical(
+                                                                  item,
+                                                                  browser
+                                                                      .secondaryTab,
+                                                                )
+                                                            ? const SizedBox.shrink()
+                                                            : item.address ==
+                                                                      null ||
+                                                                  item.initialization ==
+                                                                      null
+                                                            ? (identical(
+                                                                    item,
+                                                                    tab,
+                                                                  )
+                                                                  ? StartPage(
+                                                                      browser:
+                                                                          browser,
+                                                                      onSubmit:
+                                                                          submit,
+                                                                      onShowSettings:
+                                                                          showSettings,
+                                                                    )
+                                                                  : const SizedBox.shrink())
                                                             : WebViewWidget(
                                                                 controller:
                                                                     item.engine,

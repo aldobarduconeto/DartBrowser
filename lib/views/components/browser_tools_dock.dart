@@ -20,7 +20,6 @@ class BrowserToolsDock extends StatelessWidget {
     'commands': 'Paleta de comandos',
     'sounds': 'Sons de foco',
     'capture': 'Captura de página',
-    'speech': 'Leitura em voz alta',
     'translate': 'Tradução',
     'favorites': 'Favoritos',
     'history': 'Histórico',
@@ -138,7 +137,6 @@ class BrowserToolsDock extends StatelessWidget {
                 context,
                 browser: browser,
                 onSubmit: onSubmit,
-                onStartReadAloud: browser.startReadAloud,
               ),
             ),
 
@@ -160,23 +158,6 @@ class BrowserToolsDock extends StatelessWidget {
               onTap: () => WebCaptureDialog.show(context, browser),
             ),
 
-          // Leitura em Voz Alta (Ctrl+Shift+U)
-          if (browser.showsDockTool('speech'))
-            _dockButton(
-              context: context,
-              icon: Icons.record_voice_over_rounded,
-              tooltip: browser.readAloudService.isActive
-                  ? 'Pausar Leitura em Voz Alta'
-                  : 'Ler Página em Voz Alta (Ctrl+Shift+U)',
-              isActive: browser.readAloudService.isActive,
-              onTap: () {
-                if (browser.readAloudService.isActive) {
-                  browser.stopReadAloud();
-                } else {
-                  browser.startReadAloud();
-                }
-              },
-            ),
 
           // Tradutor de Página
           if (browser.showsDockTool('translate'))

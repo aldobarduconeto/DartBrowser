@@ -474,7 +474,6 @@ class DartBrowserContextMenu {
                     context,
                     browser: browser,
                     onSubmit: onSubmit ?? (url) => browser.open(url),
-                    onStartReadAloud: browser.startReadAloud,
                   );
                 },
               ),
@@ -487,21 +486,6 @@ class DartBrowserContextMenu {
                 onTap: () {
                   Navigator.pop(ctx);
                   WebCaptureDialog.show(context, browser);
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.record_voice_over_rounded,
-                  color: Colors.purple,
-                ),
-                title: const Text('Ler em Voz Alta'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  if (browser.readAloudService.isActive) {
-                    browser.stopReadAloud();
-                  } else {
-                    browser.startReadAloud();
-                  }
                 },
               ),
               ListTile(
@@ -699,13 +683,6 @@ class DartBrowserContextMenu {
           iconColor: Colors.deepOrange,
         ),
         _menuItem(
-          value: 'read_aloud',
-          icon: Icons.record_voice_over_rounded,
-          label: 'Ler página em voz alta',
-          shortcut: 'Ctrl+Shift+U',
-          iconColor: Colors.purple,
-        ),
-        _menuItem(
           value: 'translate',
           icon: Icons.translate_rounded,
           label: 'Traduzir para Português',
@@ -832,16 +809,9 @@ class DartBrowserContextMenu {
           context,
           browser: browser,
           onSubmit: onSubmit ?? (url) => browser.open(url),
-          onStartReadAloud: browser.startReadAloud,
         );
       case 'web_capture':
         WebCaptureDialog.show(context, browser);
-      case 'read_aloud':
-        if (browser.readAloudService.isActive) {
-          browser.stopReadAloud();
-        } else {
-          browser.startReadAloud();
-        }
       case 'translate':
         browser.translateCurrentPage();
       case 'paste_and_go':
@@ -967,7 +937,6 @@ class DartBrowserContextMenu {
                     context,
                     browser: browser,
                     onSubmit: (url) => browser.open(url),
-                    onStartReadAloud: browser.startReadAloud,
                   );
                 },
               ),
@@ -980,21 +949,6 @@ class DartBrowserContextMenu {
                 onTap: () {
                   Navigator.pop(ctx);
                   WebCaptureDialog.show(context, browser);
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.record_voice_over_rounded,
-                  color: Colors.purple,
-                ),
-                title: const Text('Ler em Voz Alta'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  if (browser.readAloudService.isActive) {
-                    browser.stopReadAloud();
-                  } else {
-                    browser.startReadAloud();
-                  }
                 },
               ),
               ListTile(
@@ -1070,12 +1024,6 @@ class DartBrowserContextMenu {
           shortcut: 'Ctrl+Shift+S',
         ),
         _menuItem(
-          value: 'read_aloud',
-          icon: Icons.record_voice_over_rounded,
-          label: 'Ler página em voz alta',
-          shortcut: 'Ctrl+Shift+U',
-        ),
-        _menuItem(
           value: 'translate',
           icon: Icons.translate_rounded,
           label: 'Traduzir para Português',
@@ -1132,16 +1080,9 @@ class DartBrowserContextMenu {
           context,
           browser: browser,
           onSubmit: (url) => browser.open(url),
-          onStartReadAloud: browser.startReadAloud,
         );
       case 'web_capture':
         WebCaptureDialog.show(context, browser);
-      case 'read_aloud':
-        if (browser.readAloudService.isActive) {
-          browser.stopReadAloud();
-        } else {
-          browser.startReadAloud();
-        }
       case 'translate':
         browser.translateCurrentPage();
       case 'bookmark_tabs':

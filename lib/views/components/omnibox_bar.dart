@@ -157,16 +157,18 @@ class OmniboxBar extends StatelessWidget {
                     onSubmit: onSubmit,
                   ),
               child: Container(
-                height: 36,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: colors.surfaceContainerLow,
+                  color: addressFocus.hasFocus
+                      ? colors.surface
+                      : colors.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: tab.isIncognito
                         ? Colors.purple.withValues(alpha: 0.5)
                         : addressFocus.hasFocus
                         ? colors.primary
-                        : colors.outlineVariant.withValues(alpha: 0.3),
+                        : colors.outlineVariant.withValues(alpha: 0.24),
                     width: addressFocus.hasFocus ? 1.5 : 1,
                   ),
                 ),
@@ -490,16 +492,9 @@ class OmniboxBar extends StatelessWidget {
                     context,
                     browser: browser,
                     onSubmit: onSubmit,
-                    onStartReadAloud: browser.startReadAloud,
                   );
                 case 'web_capture':
                   WebCaptureDialog.show(context, browser);
-                case 'read_aloud':
-                  if (browser.readAloudService.isActive) {
-                    browser.stopReadAloud();
-                  } else {
-                    browser.startReadAloud();
-                  }
                 case 'translate':
                   browser.translateCurrentPage();
                 case 'ambient_sounds':

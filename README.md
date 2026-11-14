@@ -62,7 +62,7 @@ Os grupos podem ter nome, cor e estado recolhido. Você pode duplicar, fixar, si
 | --- | --- |
 | **Favoritos** | Use a estrela para salvar a página ou **Favoritar abas abertas** para salvar abas comuns em lote. Importação e exportação usam HTML de favoritos. |
 | **Histórico e leitura** | Filtre visitas por endereço, guarde páginas na lista de leitura e marque itens como lidos. |
-| **Leitura e mídia** | Busca na página, zoom, modo leitura, leitura em voz alta, tradução para português e sons de foco. Vozes e mídia dependem do motor. A tradução usa o Google Tradutor. |
+| **Leitura e mídia** | Busca na página, zoom, modo leitura, tradução para português e sons de foco. A reprodução de mídia depende do motor. A tradução usa o Google Tradutor. |
 | **Picture-in-Picture** | Em vídeos HTML5 compatíveis, use o botão **PiP** da página. No Android compatível, a opção de janela flutuante minimiza a atividade inteira. |
 | **Ferramentas da página** | Paleta de comandos, captura, notas por site, prévia de link, código-fonte, QR Code e seleção de agente de usuário. |
 | **Downloads** | Consulte os downloads registrados em **Central de Downloads**. Limpar a lista remove os registros. |
@@ -100,7 +100,7 @@ No macOS, use **⌘** no lugar de **Ctrl**. O foco dentro da página pode afetar
 | Ctrl+R ou F5 | Recarregar | Ctrl+F | Localizar na página |
 | Ctrl+D | Favoritar página | Ctrl+H | Histórico |
 | Ctrl+K | Paleta de comandos | Ctrl+Shift+S | Captura de página |
-| Ctrl+Shift+U | Leitura em voz alta | F11 | Tela cheia |
+| F11 | Tela cheia | Ctrl+U | Ver código-fonte |
 | Ctrl+= / Ctrl+- | Ajustar zoom | Ctrl+0 | Restaurar zoom |
 
 ## Motores de navegação

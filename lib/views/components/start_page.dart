@@ -46,7 +46,7 @@ class StartPage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
+            constraints: const BoxConstraints(maxWidth: 640),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -66,19 +66,19 @@ class StartPage extends StatelessWidget {
                 // Barra de busca central
                 Card(
                   elevation: 0,
-                  color: colors.surfaceContainerLow,
+                  color: colors.surfaceContainer,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(
                       browser.cornerRadiusNotifier.value,
                     ),
                     side: BorderSide(
-                      color: colors.outlineVariant.withValues(alpha: 0.5),
+                      color: colors.outlineVariant.withValues(alpha: 0.45),
                     ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 4,
+                      vertical: 8,
                     ),
                     child: Row(
                       children: [
@@ -285,11 +285,8 @@ class StartPage extends StatelessWidget {
               Icon(icon, size: 18, color: colors.primary),
               const SizedBox(width: 8),
               Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+                browserText(context, title),
+                style: Theme.of(context).textTheme.titleSmall,
               ),
             ],
           ),
@@ -315,10 +312,9 @@ class StartPage extends StatelessWidget {
         : null;
 
     return SizedBox(
-      width: 155,
+      width: 144,
       child: Material(
-        color: colors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
+        color: colors.surfaceContainer,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(

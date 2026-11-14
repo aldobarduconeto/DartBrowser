@@ -17,7 +17,6 @@ import '../services/adblock_shield_service.dart';
 import '../services/find_in_page_service.dart';
 import '../services/picture_in_picture_service.dart';
 import '../services/reader_mode_service.dart';
-import '../services/read_aloud_service.dart';
 import '../services/page_translate_service.dart';
 
 export '../models/browser_tab.dart';
@@ -117,20 +116,6 @@ class BrowserController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // LEITURA EM VOZ ALTA (READ ALOUD)
-  final readAloudService = ReadAloudService();
-
-  Future<void> startReadAloud() async {
-    if (tabs.isNotEmpty) {
-      await readAloudService.start(current.engine);
-    }
-  }
-
-  Future<void> stopReadAloud() async {
-    await readAloudService.stop();
-  }
-
-  // TRADUÇÃO INSTANTÂNEA DE PÁGINA
   Future<void> translateCurrentPage() async {
     if (tabs.isNotEmpty && current.address != null) {
       await PageTranslateService.translatePage(
@@ -907,7 +892,11 @@ class BrowserController extends ChangeNotifier {
           tab.progress = 100;
           tab.touch();
 
-          if (savesHistory && !tab.isIncognito) {
+          final historyChanged =
+              savesHistory &&
+              !tab.isIncognito &&
+              (data.history.isEmpty || data.history.first != url);
+          if (historyChanged) {
             data.history.remove(url);
             data.history.insert(0, url);
             if (data.history.length > 300) data.history.removeLast();
@@ -920,11 +909,9 @@ class BrowserController extends ChangeNotifier {
           _update(tab);
 
           await Future.wait([
-            if (savesHistory && !tab.isIncognito)
+            if (historyChanged)
               data.preferences.setStringList('history', List.of(data.history)),
-            _refreshNavigation(tab),
-            _refreshTitle(tab, url),
-            _refreshFavicon(tab, url),
+            _refreshPageDetails(tab, url),
             _addonService.run(tab.engine, url, addons),
             if (!hasMediaScript)
               _pictureInPicture.installForCurrentPage(tab.engine),
@@ -937,7 +924,10 @@ class BrowserController extends ChangeNotifier {
                     ? tab.visualFilter
                     : PageVisualFilter.dark,
               ),
-            if (!isHostWhitelisted(tab.host))
+            if ((data.adBlockEnabled ||
+                    data.antiTrackingEnabled ||
+                    data.antiFingerprintEnabled) &&
+                !isHostWhitelisted(tab.host))
               tab.engine.runJavaScript(
                 shieldService.getShieldInjectionScript(
                   blockAds: data.adBlockEnabled,
@@ -954,11 +944,25 @@ class BrowserController extends ChangeNotifier {
     );
   }
 
-  Future<void> _refreshTitle(BrowserTab tab, String url) async {
-    final title = await tab.engine.getTitle();
-    if (tab.address != url) return;
-    tab.title = title;
+  /// Publishes page metadata and navigation controls together.
+  Future<void> _refreshPageDetails(BrowserTab tab, String url) async {
+    await Future.wait([
+      _refreshNavigation(tab, notify: false, address: url),
+      _refreshPageTitle(tab, url),
+      _refreshFavicon(tab, url),
+    ]);
+    if (tab.address != url || !tabs.contains(tab)) return;
+    if (current == tab) _syncActiveNotifiers();
     _update(tab);
+  }
+
+  Future<void> _refreshPageTitle(BrowserTab tab, String url) async {
+    try {
+      final title = await tab.engine.getTitle();
+      if (tab.address == url) tab.title = title;
+    } on Exception {
+      // A page can disappear while its metadata is being read.
+    }
   }
 
   Future<void> _refreshFavicon(BrowserTab tab, String url) async {
@@ -986,7 +990,6 @@ class BrowserController extends ChangeNotifier {
       }
       if (icon.isNotEmpty && icon != 'null' && icon != 'undefined') {
         tab.faviconUrl = icon;
-        _update(tab);
       }
     } catch (_) {}
   }
@@ -1022,10 +1025,13 @@ class BrowserController extends ChangeNotifier {
   void checkMemorySaver() {
     if (!data.memorySaver || tabs.length <= 2) return;
     final now = DateTime.now();
+    final active = current;
+    final secondary = secondaryTab;
     for (var i = 0; i < tabs.length; i++) {
       final tab = tabs[i];
-      if (tab != current &&
-          tab != secondaryTab &&
+      if (tab != active &&
+          tab != secondary &&
+          tab.initialization != null &&
           !tab.isPinned &&
           !tab.isSuspended &&
           tab.address != null) {
@@ -1036,13 +1042,28 @@ class BrowserController extends ChangeNotifier {
     }
   }
 
-  Future<void> _refreshNavigation(BrowserTab tab) async {
-    tab.canGoBack = await tab.engine.canGoBack();
-    tab.canGoForward = await tab.engine.canGoForward();
-    if (tabs.contains(tab) && current == tab) {
-      _syncActiveNotifiers();
+  Future<void> _refreshNavigation(
+    BrowserTab tab, {
+    bool notify = true,
+    String? address,
+  }) async {
+    try {
+      final states = await Future.wait([
+        tab.engine.canGoBack(),
+        tab.engine.canGoForward(),
+      ]);
+      if (!tabs.contains(tab) || (address != null && tab.address != address)) {
+        return;
+      }
+      tab.canGoBack = states[0];
+      tab.canGoForward = states[1];
+      if (notify) {
+        if (current == tab) _syncActiveNotifiers();
+        _update(tab);
+      }
+    } on Exception {
+      // The native view may be tearing down.
     }
-    _update(tab);
   }
 
   void _syncActiveNotifiers() {

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,15 +6,38 @@ import 'package:flutter/services.dart';
 import '../../controllers/browser_controller.dart';
 
 class WebCaptureDialog extends StatefulWidget {
-  const WebCaptureDialog({super.key, required this.browser});
+  const WebCaptureDialog({
+    super.key,
+    required this.browser,
+    required this.tab,
+    required this.initialCapture,
+  });
 
   final BrowserController browser;
+  final BrowserTab tab;
+  final Future<Uint8List?> initialCapture;
 
   static Future<void> show(BuildContext context, BrowserController browser) {
-    return showDialog(
+    final tab = browser.current;
+    if (tab.address == null ||
+        tab.initialization == null ||
+        tab.progress < 100 ||
+        tab.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Abra uma página e aguarde o carregamento para capturá-la.',
+          ),
+        ),
+      );
+      return Future<void>.value();
+    }
+    final capture = Future<Uint8List?>.sync(tab.engine.takeScreenshot);
+    return showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (_) => WebCaptureDialog(browser: browser),
+      builder: (_) =>
+          WebCaptureDialog(browser: browser, tab: tab, initialCapture: capture),
     );
   }
 
@@ -33,101 +55,32 @@ class _WebCaptureDialogState extends State<WebCaptureDialog> {
   @override
   void initState() {
     super.initState();
-    _pageTitle = widget.browser.current.title ?? 'Captura de Tela';
-    _pageUrl = widget.browser.current.address ?? '';
-    _takeCapture();
+    _pageTitle = widget.tab.title ?? 'Captura de Tela';
+    _pageUrl = widget.tab.address ?? '';
+    _takeCapture(widget.initialCapture);
   }
 
-  Future<void> _takeCapture() async {
+  Future<void> _takeCapture([Future<Uint8List?>? initial]) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final tab = widget.browser.current;
-      // Injeta script para capturar renderização em canvas HTML5
-      const captureScript = r"""
-      (async () => {
-        try {
-          const w = window.innerWidth;
-          const h = window.innerHeight;
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-
-          // Preenchimento de fundo padrão
-          ctx.fillStyle = window.getComputedStyle(document.body).backgroundColor || '#ffffff';
-          ctx.fillRect(0, 0, w, h);
-
-          // Desenhar elementos visuais ou criar representação gráfica estilizada da página
-          ctx.font = 'bold 24px sans-serif';
-          ctx.fillStyle = '#1e1e1e';
-          ctx.fillText(document.title || 'Página Web', 40, 60);
-
-          ctx.font = '14px monospace';
-          ctx.fillStyle = '#666666';
-          ctx.fillText(window.location.href, 40, 90);
-
-          // Linha divisória
-          ctx.strokeStyle = '#e0e0e0';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(40, 110);
-          ctx.lineTo(w - 40, 110);
-          ctx.stroke();
-
-          // Renderizar principais textos visíveis
-          const headings = Array.from(document.querySelectorAll('h1, h2, h3, p')).slice(0, 12);
-          let y = 145;
-          headings.forEach(el => {
-            const text = (el.innerText || '').trim();
-            if (text && y < h - 50) {
-              const isH = el.tagName.startsWith('H');
-              ctx.font = isH ? 'bold 16px sans-serif' : '14px sans-serif';
-              ctx.fillStyle = isH ? '#222222' : '#444444';
-              const maxLen = 80;
-              const display = text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
-              ctx.fillText(display, 40, y);
-              y += isH ? 28 : 22;
-            }
-          });
-
-          // Rodapé informativo
-          ctx.font = 'italic 12px sans-serif';
-          ctx.fillStyle = '#888888';
-          ctx.fillText('Captura gerada pelo Dart Browser em ' + new Date().toLocaleString(), 40, h - 30);
-
-          return canvas.toDataURL('image/png');
-        } catch (err) {
-          return '';
-        }
-      })();
-      """;
-
-      final rawResult = await tab.engine.runJavaScriptReturningResult(
-        captureScript,
-      );
-      var dataUrl = rawResult.toString().trim();
-      if (dataUrl.startsWith('"') &&
-          dataUrl.endsWith('"') &&
-          dataUrl.length > 2) {
-        dataUrl = dataUrl.substring(1, dataUrl.length - 1);
+      final tab = widget.tab;
+      if (!identical(tab, widget.browser.current) || tab.address != _pageUrl) {
+        throw StateError('A página mudou. Abra a captura novamente.');
       }
-
-      if (dataUrl.startsWith('data:image/png;base64,')) {
-        final base64String = dataUrl.replaceFirst('data:image/png;base64,', '');
-        final bytes = base64Decode(base64String);
-        if (mounted) {
-          setState(() {
-            _capturedImageBytes = bytes;
-            _isLoading = false;
-          });
+      final bytes = await (initial ?? tab.engine.takeScreenshot());
+      if (!mounted) return;
+      setState(() {
+        _capturedImageBytes = bytes;
+        _isLoading = false;
+        if (bytes == null || bytes.isEmpty) {
+          _capturedImageBytes = null;
+          _errorMessage = 'O motor de navegação não disponibilizou uma captura desta página.';
         }
-      } else {
-        throw Exception('Não foi possível gerar os bytes da captura.');
-      }
+      });
     } catch (e) {
       if (mounted) {
         setState(() {

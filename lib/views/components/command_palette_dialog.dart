@@ -33,18 +33,15 @@ class CommandPaletteDialog extends StatefulWidget {
     super.key,
     required this.browser,
     required this.onSubmit,
-    this.onStartReadAloud,
   });
 
   final BrowserController browser;
   final ValueChanged<String> onSubmit;
-  final VoidCallback? onStartReadAloud;
 
   static Future<void> show(
     BuildContext context, {
     required BrowserController browser,
     required ValueChanged<String> onSubmit,
-    VoidCallback? onStartReadAloud,
   }) {
     return showDialog(
       context: context,
@@ -52,7 +49,6 @@ class CommandPaletteDialog extends StatefulWidget {
       builder: (_) => CommandPaletteDialog(
         browser: browser,
         onSubmit: onSubmit,
-        onStartReadAloud: onStartReadAloud,
       ),
     );
   }
@@ -112,15 +108,6 @@ class _CommandPaletteDialogState extends State<CommandPaletteDialog> {
         shortcut: 'Ctrl+Shift+S',
         onSelect: () => WebCaptureDialog.show(context, browser),
       ),
-      if (widget.onStartReadAloud != null)
-        PaletteItem(
-          title: 'Ler em Voz Alta',
-          subtitle: 'Ouvir o texto do artigo com sintetizador de voz',
-          icon: Icons.record_voice_over_rounded,
-          category: 'Ações',
-          shortcut: 'Ctrl+Shift+U',
-          onSelect: () => widget.onStartReadAloud!(),
-        ),
       PaletteItem(
         title: 'Dividir Tela (Split Screen)',
         subtitle: 'Exibir duas abas lado a lado simultaneamente',

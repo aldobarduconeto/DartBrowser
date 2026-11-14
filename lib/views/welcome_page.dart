@@ -144,7 +144,7 @@ class _WelcomePageState extends State<WelcomePage> {
                       ListTile(
                         title: Text('Leitura e mídia'),
                         subtitle: Text(
-                          'Use modo leitura, busca na página, zoom, leitura em voz alta, tradução, PiP e sons de foco.',
+                          'Use modo leitura, busca na página, zoom, tradução, PiP e sons de foco.',
                         ),
                       ),
                       ListTile(
