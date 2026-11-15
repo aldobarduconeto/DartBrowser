@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:webview_all/webview_all.dart';
@@ -18,6 +19,7 @@ import '../services/find_in_page_service.dart';
 import '../services/picture_in_picture_service.dart';
 import '../services/reader_mode_service.dart';
 import '../services/page_translate_service.dart';
+import '../services/window_service.dart';
 
 export '../models/browser_tab.dart';
 
@@ -113,8 +115,37 @@ class BrowserController extends ChangeNotifier {
 
   // TELA CHEIA (FULLSCREEN)
   final fullScreenNotifier = ValueNotifier<bool>(false);
+  BrowserTab? _fullscreenTab;
+  Widget? _fullscreenVideoContent;
+  Widget? get fullscreenVideoContent => _fullscreenVideoContent;
+  bool _manualFullscreen = false;
+
   void toggleFullScreen() {
-    fullScreenNotifier.value = !fullScreenNotifier.value;
+    final tab = _fullscreenTab;
+    if (tab != null) {
+      unawaited(_exitPageFullscreen(tab));
+      return;
+    }
+    _manualFullscreen = !_manualFullscreen;
+    fullScreenNotifier.value = _manualFullscreen;
+    notifyListeners();
+  }
+
+  Future<void> _exitPageFullscreen(BrowserTab tab) async {
+    _clearPageFullscreen(tab);
+    try {
+      if (tab.hasEngine) await tab.engine.exitFullscreen();
+    } on Exception catch (error) {
+      debugPrint('Page fullscreen: $error');
+    }
+  }
+
+  void _clearPageFullscreen(BrowserTab tab) {
+    if (!identical(_fullscreenTab, tab)) return;
+    _fullscreenTab = null;
+    _fullscreenVideoContent = null;
+    fullScreenNotifier.value = _manualFullscreen;
+    unawaited(WindowService.setVideoFullscreen(false));
     notifyListeners();
   }
 
@@ -751,6 +782,25 @@ class BrowserController extends ChangeNotifier {
       _update(tab);
     }
     await tab.engine.setJavaScriptMode(JavaScriptMode.unrestricted);
+    if (WindowService.isDesktop || Platform.isAndroid || Platform.isIOS) {
+      await tab.engine.setFullscreenDelegate(
+        WebViewFullscreenDelegate(
+          onEnter: (request) {
+            if (tabs.isEmpty || !identical(current, tab)) {
+              unawaited(request.exit());
+              return;
+            }
+            // Apple platforms present the video through WebKit.
+            _fullscreenTab = tab;
+            _fullscreenVideoContent = request.content;
+            fullScreenNotifier.value = true;
+            unawaited(WindowService.setVideoFullscreen(true));
+            notifyListeners();
+          },
+          onExit: () => _clearPageFullscreen(tab),
+        ),
+      );
+    }
     try {
       await tab.engine.addJavaScriptChannel(
         'DartLinkHandler',
@@ -836,6 +886,7 @@ class BrowserController extends ChangeNotifier {
           return NavigationDecision.navigate;
         },
         onPageStarted: (url) {
+          _clearPageFullscreen(tab);
           final uri = Uri.tryParse(url);
           if (!tabs.contains(tab) || uri == null || !BrowserData.isWeb(uri)) {
             return;
@@ -1113,6 +1164,11 @@ class BrowserController extends ChangeNotifier {
   }
 
   void _syncActiveNotifiers() {
+    final fullscreenTab = _fullscreenTab;
+    if (fullscreenTab != null &&
+        (tabs.isEmpty || !identical(fullscreenTab, current))) {
+      unawaited(_exitPageFullscreen(fullscreenTab));
+    }
     if (tabs.isEmpty) return;
     final tab = current;
     activeTabProgressNotifier.value = tab.progress;
@@ -1162,7 +1218,11 @@ class BrowserController extends ChangeNotifier {
   void closeTab(int index) {
     if (index < 0 || index >= tabs.length) return;
     final wasSelected = index == selected;
-    final closed = tabs.removeAt(index);
+    final closed = tabs[index];
+    if (identical(_fullscreenTab, closed)) {
+      unawaited(_exitPageFullscreen(closed));
+    }
+    tabs.removeAt(index);
     _closePrivateTab(closed);
     if (!closed.isIncognito && closed.hasEngine && closed.address != null) {
       unawaited(_pictureInPicture.exitPiP(closed.engine));
@@ -2081,6 +2141,10 @@ class BrowserController extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_fullscreenTab != null) {
+      _fullscreenTab = null;
+      unawaited(WindowService.setVideoFullscreen(false));
+    }
     for (final tab in tabs) {
       _closePrivateTab(tab);
     }

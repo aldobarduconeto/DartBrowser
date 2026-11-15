@@ -416,41 +416,17 @@ class _BrowserSettingsState extends State<BrowserSettings> {
 
   Widget section(BuildContext context, String title, List<Widget> options) =>
       Card(
-        elevation: 0,
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        margin: const EdgeInsets.only(bottom: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(
-            browser.cornerRadiusNotifier.value,
-          ),
-          side: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant
-                .withValues(alpha: .45),
-          ),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Row(
-                children: [
-                  Container(
-                    width: 3,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                ],
+              child: Semantics(
+                header: true,
+                child: Text(
+                  browserText(context, title),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
             ),
             ...options,
@@ -492,7 +468,12 @@ class _BrowserSettingsState extends State<BrowserSettings> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              16,
+              24,
+              24 + MediaQuery.paddingOf(context).bottom,
+            ),
             children: [
               section(context, 'Idioma', [LanguageTile(browser: browser)]),
               section(context, 'Navegação', [

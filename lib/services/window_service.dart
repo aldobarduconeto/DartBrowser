@@ -15,6 +15,17 @@ class WindowService {
   static bool get isMacOS => !kIsWeb && Platform.isMacOS;
   static bool get isLinux => !kIsWeb && Platform.isLinux;
 
+  static Future<void> setVideoFullscreen(bool enabled) async {
+    if (kIsWeb || !(isWindows || isLinux || Platform.isAndroid)) return;
+    try {
+      await _channel.invokeMethod<void>('setVideoFullscreen', enabled);
+    } on PlatformException catch (error) {
+      debugPrint('Video fullscreen: ${error.message}');
+    } on MissingPluginException {
+      // The desktop runner may not be attached in widget tests.
+    }
+  }
+
   static Future<void> startDragging() async {
     if (!isDesktop) return;
     try {

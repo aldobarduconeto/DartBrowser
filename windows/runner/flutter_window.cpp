@@ -37,7 +37,15 @@ bool FlutterWindow::OnCreate() {
       [this](const flutter::MethodCall<flutter::EncodableValue>& call,
              std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
         HWND hwnd = GetHandle();
-        if (call.method_name() == "startDragging") {
+        if (call.method_name() == "setVideoFullscreen") {
+          const auto* enabled = call.arguments()
+              ? std::get_if<bool>(call.arguments()) : nullptr;
+          if (enabled && SetVideoFullscreen(*enabled)) {
+            result->Success();
+          } else {
+            result->Error("fullscreen", "Could not change window fullscreen");
+          }
+        } else if (call.method_name() == "startDragging") {
           ::ReleaseCapture();
           ::SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
           result->Success();
@@ -74,6 +82,36 @@ bool FlutterWindow::OnCreate() {
   return true;
 }
 
+bool FlutterWindow::SetVideoFullscreen(bool enabled) {
+  if (video_fullscreen_ == enabled) return true;
+  HWND hwnd = GetHandle();
+  if (enabled) {
+    MONITORINFO monitor{};
+    monitor.cbSize = sizeof(monitor);
+    if (!::GetWindowPlacement(hwnd, &restored_placement_) ||
+        !::GetMonitorInfo(::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST),
+                          &monitor)) {
+      return false;
+    }
+    restored_style_ = ::GetWindowLongPtr(hwnd, GWL_STYLE);
+    video_fullscreen_ = true;
+    ::SetWindowLongPtr(hwnd, GWL_STYLE,
+                       restored_style_ & ~(WS_OVERLAPPEDWINDOW | WS_MAXIMIZE));
+    const RECT& bounds = monitor.rcMonitor;
+    ::SetWindowPos(hwnd, HWND_TOP, bounds.left, bounds.top,
+                   bounds.right - bounds.left, bounds.bottom - bounds.top,
+                   SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
+  } else {
+    video_fullscreen_ = false;
+    ::SetWindowLongPtr(hwnd, GWL_STYLE, restored_style_);
+    ::SetWindowPlacement(hwnd, &restored_placement_);
+    ::SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+                   SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                       SWP_NOACTIVATE);
+  }
+  return true;
+}
+
 void FlutterWindow::OnDestroy() {
   window_channel_ = nullptr;
   if (flutter_controller_) {
@@ -98,6 +136,12 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   }
 
   switch (message) {
+    case WM_NCCALCSIZE:
+      if (video_fullscreen_ && wparam == TRUE) return 0;
+      break;
+    case WM_NCHITTEST:
+      if (video_fullscreen_) return HTCLIENT;
+      break;
     case WM_FONTCHANGE:
       if (flutter_controller_) {
         flutter_controller_->engine()->ReloadSystemFonts();

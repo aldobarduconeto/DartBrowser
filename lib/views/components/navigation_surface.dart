@@ -6,10 +6,19 @@ ShapeDecoration navigationSurface(
   bool focused = false,
   bool private = false,
 }) => ShapeDecoration(
-  color: focused ? colors.surface : colors.surfaceContainerLow,
+  color: private
+      ? Color.alphaBlend(
+          colors.tertiary.withValues(alpha: .12),
+          focused ? colors.surface : colors.surfaceContainerLow,
+        )
+      : focused
+      ? colors.surface
+      : colors.surfaceContainerLow,
   shape: StadiumBorder(
     side: BorderSide(
-      color: private || focused
+      color: private
+          ? colors.tertiary
+          : focused
           ? colors.primary
           : colors.outlineVariant.withValues(alpha: .45),
     ),

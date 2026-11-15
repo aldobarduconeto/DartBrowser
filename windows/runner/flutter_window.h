@@ -25,6 +25,11 @@ class FlutterWindow : public Win32Window {
                          LPARAM const lparam) noexcept override;
 
  private:
+  bool SetVideoFullscreen(bool enabled);
+  bool video_fullscreen_ = false;
+  LONG_PTR restored_style_ = 0;
+  WINDOWPLACEMENT restored_placement_{sizeof(WINDOWPLACEMENT)};
+
   // The project to run.
   flutter::DartProject project_;
 

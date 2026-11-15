@@ -48,40 +48,38 @@ class _WelcomePageState extends State<WelcomePage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final introduction = Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Image.asset(
-              'assets/app_icon.png',
-              width: 64,
-              height: 64,
-              cacheWidth: 192,
-              excludeFromSemantics: true,
+    final introduction = Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.asset(
+                'assets/app_icon.png',
+                width: 64,
+                height: 64,
+                cacheWidth: 192,
+                excludeFromSemantics: true,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            browserText(context, 'Boas-vindas ao Dart Browser'),
-            style: theme.textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            browserText(
-              context,
-              'Escolha seu buscador, o tema e a posição das abas. Você pode mudar essas opções nas configurações.',
+            const SizedBox(height: 20),
+            Text(
+              browserText(context, 'Boas-vindas ao Dart Browser'),
+              style: theme.textTheme.headlineMedium,
             ),
-            style: theme.textTheme.bodyMedium,
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              browserText(
+                context,
+                'Escolha seu buscador, o tema e a posição das abas. Você pode mudar essas opções nas configurações.',
+              ),
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
+        ),
       ),
     );
     return Scaffold(
@@ -185,7 +183,7 @@ class _WelcomePageState extends State<WelcomePage> {
               padding: const EdgeInsets.all(24),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: wide ? 920 : 520),
+                  constraints: BoxConstraints(maxWidth: wide ? 920 : 640),
                   child: wide
                       ? Row(
                           crossAxisAlignment: CrossAxisAlignment.start,

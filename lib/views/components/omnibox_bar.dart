@@ -93,7 +93,10 @@ class OmniboxBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: tab.isIncognito
-            ? (dark ? const Color(0xFF13111C) : const Color(0xFFF3E8FF))
+            ? Color.alphaBlend(
+                colors.tertiary.withValues(alpha: .08),
+                colors.surface,
+              )
             : colors.surface,
         border: Border(
           bottom: BorderSide(

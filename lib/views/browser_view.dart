@@ -610,7 +610,8 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
 
         final isFullScreen = browser.fullScreenNotifier.value;
 
-        return CallbackShortcuts(
+        final fullscreenVideo = browser.fullscreenVideoContent;
+        final browserLayout = CallbackShortcuts(
           bindings: {
             // Ctrl+L: Focar na URL
             SingleActivator(
@@ -906,6 +907,7 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                                       final totalWidth = constraints.maxWidth;
                                       final isSplit =
                                           totalWidth >= 366 &&
+                                          !isFullScreen &&
                                           browser.splitScreenNotifier.value &&
                                           browser.secondaryTab != null;
 
@@ -1108,6 +1110,13 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                                         ),
                                       ),
                                     ),
+                                  if (fullscreenVideo != null)
+                                    Positioned.fill(
+                                      child: ColoredBox(
+                                        color: Colors.black,
+                                        child: fullscreenVideo,
+                                      ),
+                                    ),
                                   if (isFullScreen)
                                     Positioned(
                                       top: 12,
@@ -1148,6 +1157,15 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
               ),
             ),
           ),
+        );
+        return PopScope(
+          canPop: fullscreenVideo == null,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop && browser.fullscreenVideoContent != null) {
+              browser.toggleFullScreen();
+            }
+          },
+          child: browserLayout,
         );
       },
     );

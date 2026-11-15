@@ -16,6 +16,33 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
+static void window_method_call(FlMethodChannel* channel, FlMethodCall* call,
+                               gpointer user_data) {
+  FlValue* args = fl_method_call_get_args(call);
+  if (g_strcmp0(fl_method_call_get_name(call), "setVideoFullscreen") != 0) {
+    fl_method_call_respond_not_implemented(call, nullptr);
+    return;
+  }
+  if (args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_BOOL) {
+    fl_method_call_respond_error(call, "fullscreen", "Expected a boolean",
+                                 nullptr, nullptr);
+    return;
+  }
+  GtkWindow* window = GTK_WINDOW(user_data);
+  GdkWindow* surface = gtk_widget_get_window(GTK_WIDGET(window));
+  if (fl_value_get_bool(args)) {
+    if (!g_object_get_data(G_OBJECT(window), "video-fullscreen-owned") &&
+        (surface == nullptr ||
+         !(gdk_window_get_state(surface) & GDK_WINDOW_STATE_FULLSCREEN))) {
+      g_object_set_data(G_OBJECT(window), "video-fullscreen-owned", GINT_TO_POINTER(1));
+      gtk_window_fullscreen(window);
+    }
+  } else if (g_object_steal_data(G_OBJECT(window), "video-fullscreen-owned")) {
+    gtk_window_unfullscreen(window);
+  }
+  fl_method_call_respond_success(call, nullptr, nullptr);
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
@@ -52,6 +79,15 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+      "dart_browser/window", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(channel, window_method_call, window,
+                                            nullptr);
+  g_object_set_data_full(G_OBJECT(window), "window-channel",
+                         g_steal_pointer(&channel), g_object_unref);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

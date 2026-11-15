@@ -116,11 +116,34 @@ class _DartBrowserState extends State<DartBrowser> {
         ? const Color(0xFF101319)
         : const Color(0xFFF4F6FA);
 
-    final colors = ColorScheme.fromSeed(
-      seedColor: Color(accent.argb),
-      brightness: brightness,
-      surface: surface,
-    );
+    final colors =
+        ColorScheme.fromSeed(
+          seedColor: Color(accent.argb),
+          brightness: brightness,
+          surface: surface,
+        ).copyWith(
+          surfaceContainerLowest: isDark ? Colors.black : Colors.white,
+          surfaceContainerLow: isOled
+              ? const Color(0xFF0D0D0D)
+              : isDark
+              ? const Color(0xFF191E28)
+              : Colors.white,
+          surfaceContainer: isOled
+              ? const Color(0xFF121212)
+              : isDark
+              ? const Color(0xFF202632)
+              : const Color(0xFFEFF2F8),
+          surfaceContainerHigh: isOled
+              ? const Color(0xFF1B1B1B)
+              : isDark
+              ? const Color(0xFF27303F)
+              : const Color(0xFFE8EDF5),
+          surfaceContainerHighest: isOled
+              ? const Color(0xFF252525)
+              : isDark
+              ? const Color(0xFF313B4C)
+              : const Color(0xFFDFE6F1),
+        );
 
     final radius = browser.cornerRadiusNotifier.value;
     final shape = RoundedRectangleBorder(
@@ -138,11 +161,8 @@ class _DartBrowserState extends State<DartBrowser> {
         centerTitle: false,
       ),
       cardTheme: CardThemeData(
-        color: isOled
-            ? const Color(0xFF0D0D0D)
-            : isDark
-            ? const Color(0xFF191E28)
-            : Colors.white,
+        color: colors.surfaceContainerLow,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: const EdgeInsets.only(bottom: 12),
         shape: shape.copyWith(
@@ -151,24 +171,27 @@ class _DartBrowserState extends State<DartBrowser> {
       ),
       dialogTheme: DialogThemeData(
         shape: shape,
-        backgroundColor: isOled
-            ? const Color(0xFF121212)
-            : isDark
-            ? const Color(0xFF202632)
-            : Colors.white,
+        backgroundColor: colors.surfaceContainerLow,
+        surfaceTintColor: Colors.transparent,
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: isOled
-            ? const Color(0xFF121212)
-            : isDark
-            ? const Color(0xFF232A38)
-            : Colors.white,
+        color: colors.surfaceContainerLow,
+        surfaceTintColor: Colors.transparent,
         elevation: 6,
         shape: shape,
       ),
       dividerTheme: DividerThemeData(
         color: colors.outlineVariant.withValues(alpha: 0.4),
         thickness: 1,
+      ),
+      listTileTheme: const ListTileThemeData(
+        contentPadding: EdgeInsets.symmetric(horizontal: 16),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(shape: shape),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(shape: shape),
       ),
     );
   }

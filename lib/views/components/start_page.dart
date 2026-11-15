@@ -82,16 +82,6 @@ class StartPage extends StatelessWidget {
                 const SizedBox(height: 20),
                 // Barra de busca central
                 Card(
-                  elevation: 0,
-                  color: colors.surfaceContainer,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      browser.cornerRadiusNotifier.value,
-                    ),
-                    side: BorderSide(
-                      color: colors.outlineVariant.withValues(alpha: 0.45),
-                    ),
-                  ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
