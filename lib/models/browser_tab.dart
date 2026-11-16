@@ -47,6 +47,7 @@ class BrowserTab {
   DateTime lastAccessed;
 
   Future<void>? initialization;
+  int navigationGeneration = 0;
 
   void touch() {
     lastAccessed = DateTime.now();

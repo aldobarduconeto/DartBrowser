@@ -77,6 +77,205 @@ class OmniboxBar extends StatelessWidget {
     );
   }
 
+  void _showPerformanceDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final colors = Theme.of(ctx).colorScheme;
+          final currentProfile = browser.data.performanceProfile;
+          final suspendedCount =
+              browser.tabs.where((t) => t.isSuspended).length;
+
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Padding(
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: colors.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.speed_rounded,
+                            color: colors.onPrimaryContainer,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Potência e Desempenho',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Ajuste dinâmico de CPU, GPU e memória RAM',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    for (final profile in BrowserPerformanceProfile.values) ...[
+                      InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () async {
+                          await browser.setPerformanceProfile(profile);
+                          setDialogState(() {});
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: currentProfile == profile
+                                ? colors.primaryContainer.withValues(alpha: 0.35)
+                                : colors.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: currentProfile == profile
+                                  ? colors.primary
+                                  : colors.outlineVariant.withValues(alpha: 0.3),
+                              width: currentProfile == profile ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                profile.icon,
+                                color: currentProfile == profile
+                                    ? colors.primary
+                                    : colors.onSurfaceVariant,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      profile.label,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: currentProfile == profile
+                                            ? colors.primary
+                                            : colors.onSurface,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      profile.description,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Radio<BrowserPerformanceProfile>(
+                                value: profile,
+                                groupValue: currentProfile,
+                                onChanged: (val) async {
+                                  if (val != null) {
+                                    await browser.setPerformanceProfile(val);
+                                    setDialogState(() {});
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colors.surfaceContainerHigh.withValues(
+                          alpha: 0.5,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.memory_rounded,
+                            size: 20,
+                            color: colors.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Abas: ${browser.tabs.length} | Em repouso (RAM livre): $suspendedCount',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          if (browser.tabs.length > 1 &&
+                              browser.tabs.any(
+                                (t) => t != browser.current && !t.isSuspended,
+                              ))
+                            FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                              ),
+                              onPressed: () {
+                                for (final tab in browser.tabs) {
+                                  if (tab != browser.current &&
+                                      !tab.isSuspended &&
+                                      !tab.hasAudio) {
+                                    browser.suspendTab(tab, automatic: true);
+                                  }
+                                }
+                                setDialogState(() {});
+                              },
+                              child: const Text('Liberar RAM'),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -88,6 +287,10 @@ class OmniboxBar extends StatelessWidget {
     final isHttps = tab.address?.startsWith('https://') == true;
     final activeAddons = browser.activeAddonsForCurrentPage;
     final pinnedAddons = browser.pinnedAddons;
+
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isCompact = screenWidth < 740;
+    final isVeryCompact = screenWidth < 540;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -115,13 +318,14 @@ class OmniboxBar extends StatelessWidget {
             icon: const Icon(Icons.arrow_back_rounded, size: 18),
           ),
 
-          // BOTÃO AVANÇAR
-          IconButton(
-            tooltip: 'Avançar',
-            visualDensity: VisualDensity.compact,
-            onPressed: tab.canGoForward ? browser.goForward : null,
-            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-          ),
+          // BOTÃO AVANÇAR (visível se houver histórico para avançar ou em telas largas)
+          if (!isCompact || tab.canGoForward)
+            IconButton(
+              tooltip: 'Avançar',
+              visualDensity: VisualDensity.compact,
+              onPressed: tab.canGoForward ? browser.goForward : null,
+              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+            ),
 
           // BOTÃO RECARREGAR / PARAR
           IconButton(
@@ -138,15 +342,16 @@ class OmniboxBar extends StatelessWidget {
             ),
           ),
 
-          // BOTÃO PÁGINA INICIAL
-          IconButton(
-            tooltip: 'Página inicial',
-            visualDensity: VisualDensity.compact,
-            onPressed: browser.data.home == null
-                ? () => browser.addTab()
-                : () => onSubmit(browser.data.home!),
-            icon: const Icon(Icons.home_rounded, size: 18),
-          ),
+          // BOTÃO PÁGINA INICIAL (oculto apenas em telas ultra compactas)
+          if (!isVeryCompact)
+            IconButton(
+              tooltip: 'Página inicial',
+              visualDensity: VisualDensity.compact,
+              onPressed: browser.data.home == null
+                  ? () => browser.addTab()
+                  : () => onSubmit(browser.data.home!),
+              icon: const Icon(Icons.home_rounded, size: 18),
+            ),
           const SizedBox(width: 4),
 
           // CÁPSULA DA OMNIBOX
@@ -262,7 +467,7 @@ class OmniboxBar extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                         onPressed: () => browser.toggleReaderMode(),
                         icon: Icon(
-                          Icons.chrome_reader_mode_rounded,
+                          Icons.article_rounded,
                           size: 18,
                           color: tab.isReaderMode
                               ? colors.primary
@@ -270,8 +475,8 @@ class OmniboxBar extends StatelessWidget {
                         ),
                       ),
 
-                    // Botão Compartilhar via QR Code
-                    if (tab.address != null)
+                    // Botão Compartilhar via QR Code (em telas médias/largas)
+                    if (tab.address != null && !isCompact)
                       IconButton(
                         tooltip: 'Escanear link no celular (QR Code)',
                         visualDensity: VisualDensity.compact,
@@ -284,8 +489,8 @@ class OmniboxBar extends StatelessWidget {
                         ),
                       ),
 
-                    // Botão Lista de Leitura ("Ler Depois")
-                    if (tab.address != null)
+                    // Botão Lista de Leitura ("Ler Depois", em telas médias/largas)
+                    if (tab.address != null && !isCompact)
                       IconButton(
                         tooltip: inReadingList
                             ? 'Remover de Ler Depois'
@@ -441,6 +646,28 @@ class OmniboxBar extends StatelessWidget {
                       ),
                     ),
                 ],
+              ),
+            ),
+
+          // BOTÃO DE POTÊNCIA E DESEMPENHO DO DISPOSITIVO
+          if (!isVeryCompact)
+            Tooltip(
+              message:
+                  'Potência do Dispositivo: ${browser.data.performanceProfile.label}',
+              child: IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  browser.data.performanceProfile.icon,
+                  size: 18,
+                  color: browser.data.performanceProfile ==
+                          BrowserPerformanceProfile.highPerformance
+                      ? Colors.amber.shade700
+                      : (browser.data.performanceProfile ==
+                              BrowserPerformanceProfile.efficiency
+                          ? Colors.green.shade600
+                          : colors.primary),
+                ),
+                onPressed: () => _showPerformanceDialog(context),
               ),
             ),
 
@@ -606,6 +833,8 @@ class OmniboxBar extends StatelessWidget {
                       builder: (_) => BrowserSettings(browser: browser),
                     ),
                   );
+                case 'performance':
+                  _showPerformanceDialog(context);
                 case 'theme':
                   browser.setTheme(dark ? ThemeMode.light : ThemeMode.dark);
               }
@@ -773,6 +1002,20 @@ class OmniboxBar extends StatelessWidget {
                 ),
               ),
               const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'performance',
+                child: Row(
+                  children: [
+                    Icon(
+                      browser.data.performanceProfile.icon,
+                      size: 18,
+                      color: colors.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Text('Potência: ${browser.data.performanceProfile.label}'),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'addons',
                 child: Row(

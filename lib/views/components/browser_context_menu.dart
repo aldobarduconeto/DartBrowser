@@ -532,7 +532,7 @@ class DartBrowserContextMenu {
                 ),
                 ListTile(
                   leading: const Icon(
-                    Icons.chrome_reader_mode_rounded,
+                    Icons.article_rounded,
                     color: Colors.teal,
                   ),
                   title: const BrowserText('Modo Leitura Limpa'),
@@ -724,7 +724,7 @@ class DartBrowserContextMenu {
           ),
           _menuItem(
             value: 'reader_mode',
-            icon: Icons.chrome_reader_mode_rounded,
+            icon: Icons.article_rounded,
             label: 'Modo Leitura Limpa',
             shortcut: 'Alt+R',
             iconColor: Colors.teal,

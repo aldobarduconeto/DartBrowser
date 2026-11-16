@@ -173,7 +173,7 @@ class _ReaderModeViewState extends State<ReaderModeView> {
         ),
         title: Row(
           children: [
-            Icon(Icons.chrome_reader_mode_rounded, color: _textColor, size: 20),
+            Icon(Icons.article_rounded, color: _textColor, size: 20),
             const SizedBox(width: 8),
             Text(
               'Modo Leitura',

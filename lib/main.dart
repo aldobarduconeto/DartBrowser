@@ -39,13 +39,13 @@ Future<void> main(List<String> arguments) async {
       } else {
         browser.engineVersion = await browser.engine.runtimeVersion();
         if (browser.engineVersion == null) {
-          startupError = 'Instale o Microsoft Edge WebView2 Runtime e abra o Dart Browser novamente.';
+          startupError = 'Instale o Runtime do Motor Web e abra o navegador novamente.';
         }
       }
     } catch (_) {
       startupError = fixedPath == null
-          ? 'Não foi possível verificar o Microsoft Edge WebView2 Runtime.'
-          : 'Não foi possível iniciar o WebView2 pela pasta selecionada.';
+          ? 'Não foi possível verificar o Runtime do Motor Web do sistema.'
+          : 'Não foi possível iniciar o motor web pela pasta selecionada.';
     }
   }
   if (startupError == null) {
@@ -228,7 +228,7 @@ class _DartBrowserState extends State<DartBrowser> {
                       children: [
                         Text(
                           _resetRuntime
-                              ? 'Feche e reabra o Dart Browser para usar o WebView2 do sistema.'
+                              ? 'Feche e reabra o navegador para usar o motor web padrão do sistema.'
                               : widget.startupError!,
                           textAlign: TextAlign.center,
                         ),
@@ -237,7 +237,7 @@ class _DartBrowserState extends State<DartBrowser> {
                           const SizedBox(height: 16),
                           FilledButton(
                             onPressed: resetRuntime,
-                            child: const Text('Voltar ao WebView2 do sistema'),
+                            child: const Text('Voltar ao motor web padrão do sistema'),
                           ),
                         ],
                       ],

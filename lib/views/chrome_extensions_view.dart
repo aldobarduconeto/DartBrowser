@@ -399,12 +399,12 @@ class _ChromeExtensionsViewState extends State<ChromeExtensionsView>
                                 } else if (path.contains(
                                       'chromewebstore.google.com',
                                     ) ||
-                                    RegExp(r'^[a-z]{32}$').hasMatch(path)) {
+                                    RegExp(r'^[a-zA-Z0-9_-]{16,64}$').hasMatch(path)) {
                                   final id =
-                                      RegExp(r'/detail/(?:[^/]+/)?([a-p]{32})')
+                                      RegExp(r'/detail/(?:[^/]+/)?([a-zA-Z0-9_-]+)')
                                           .firstMatch(path)
                                           ?.group(1) ??
-                                      path;
+                                      path.split('?').first.split('/').last.trim();
                                   newExt = service.importCrxBytes(
                                     await ChromeExtensionService.downloadCrx(
                                       id,

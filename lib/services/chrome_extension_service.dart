@@ -12,12 +12,14 @@ class ChromeExtensionService {
 
   final SharedPreferences preferences;
   static const _maxImportBytes = 50 * 1024 * 1024; // 50 MB
+  static List<ChromeExtension>? _cachedExtensions;
 
   // -------------------------------------------------------------
   // CARREGAMENTO E PERSISTÊNCIA
   // -------------------------------------------------------------
 
   List<ChromeExtension> load() {
+    if (_cachedExtensions != null) return _cachedExtensions!;
     final rawList = preferences.getStringList('browserAddons');
     if (rawList == null) {
       final defaults = getPopularPresets();
@@ -38,13 +40,15 @@ class ChromeExtensionService {
         continue;
       }
     }
-    return extensions;
+    return _cachedExtensions = extensions;
   }
 
-  Future<bool> save(List<ChromeExtension> extensions) =>
-      preferences.setStringList('browserAddons', [
-        for (final ext in extensions) ext.encode(),
-      ]);
+  Future<bool> save(List<ChromeExtension> extensions) {
+    _cachedExtensions = List<ChromeExtension>.from(extensions);
+    return preferences.setStringList('browserAddons', [
+      for (final ext in extensions) ext.encode(),
+    ]);
+  }
 
   // -------------------------------------------------------------
   // BACKUP E EXPORTAÇÃO / IMPORTAÇÃO MULTIPLATAFORMA
@@ -241,6 +245,56 @@ class ChromeExtensionService {
       compiledScripts.writeln(customSource);
     }
 
+    // Background / Service Worker
+    if (decoded['background'] is Map) {
+      final bg = decoded['background'] as Map;
+      if (bg['service_worker'] is String) {
+        final swPath = bg['service_worker'].toString().replaceAll(r'\', '/');
+        final swKey = files.keys.firstWhere(
+          (k) =>
+              k == swPath ||
+              k.endsWith(swPath) ||
+              k == swPath.replaceFirst(RegExp(r'^\.?/'), ''),
+          orElse: () => '',
+        );
+        if (swKey.isNotEmpty &&
+            files[swKey] != null &&
+            files[swKey]!.trim().isNotEmpty) {
+          compiledScripts.writeln('''
+            // Background Service Worker ($swPath)
+            try {
+              ${files[swKey]}
+            } catch (swErr) {
+              console.warn('[Extension Service Worker] ' + ${jsonEncode(name)} + ':', swErr);
+            }
+          ''');
+        }
+      } else if (bg['scripts'] is List) {
+        for (final script in bg['scripts'] as List) {
+          final sPath = script.toString().replaceAll(r'\', '/');
+          final sKey = files.keys.firstWhere(
+            (k) =>
+                k == sPath ||
+                k.endsWith(sPath) ||
+                k == sPath.replaceFirst(RegExp(r'^\.?/'), ''),
+            orElse: () => '',
+          );
+          if (sKey.isNotEmpty &&
+              files[sKey] != null &&
+              files[sKey]!.trim().isNotEmpty) {
+            compiledScripts.writeln('''
+              // Background Script ($sPath)
+              try {
+                ${files[sKey]}
+              } catch (bgErr) {
+                console.warn('[Extension Background] ' + ${jsonEncode(name)} + ':', bgErr);
+              }
+            ''');
+          }
+        }
+      }
+    }
+
     final contentScripts = decoded['content_scripts'];
     if (contentScripts is List) {
       for (final item in contentScripts) {
@@ -321,29 +375,68 @@ class ChromeExtensionService {
 
   static Future<Uint8List> downloadCrx(String extensionId) async {
     final cleanId = extensionId.trim().toLowerCase();
-    final url =
-        'https://clients2.google.com/service/update2/crx?response=redirect&prodversion=130.0.0.0&acceptformat=crx2,crx3&x=id%3D$cleanId%26uc';
-    return downloadCrxFromUrl(url);
+    final urls = [
+      'https://clients2.google.com/service/update2/crx?response=redirect&os=win&arch=x64&os_arch=x86_64&nacl_arch=x86-64&prod=chromecrx&prodchannel=&prodversion=131.0.0.0&lang=pt-BR&acceptformat=crx3,crx2&x=id%3D$cleanId%26installsource%3Dondownload%26uc',
+      'https://clients2.google.com/service/update2/crx?response=redirect&prodversion=131.0.0.0&acceptformat=crx2,crx3&x=id%3D$cleanId%26uc',
+      'https://clients2.google.com/service/update2/crx?response=redirect&os=win&arch=x86-64&os_arch=x86-64&nacl_arch=x86-64&prod=chromecrx&prodchannel=unknown&prodversion=132.0.0.0&acceptformat=crx2,crx3&x=id%3D$cleanId%26uc',
+      'https://clients2.google.com/service/update2/crx?response=redirect&prodversion=130.0.0.0&acceptformat=crx2,crx3&x=id%3D$cleanId%26uc',
+      'https://clients2.google.com/service/update2/crx?response=redirect&prodversion=132.0.0.0&acceptformat=crx2,crx3&x=id%3D$cleanId%26uc',
+    ];
+    Object? lastError;
+    for (final url in urls) {
+      try {
+        return await downloadCrxFromUrl(url);
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError ?? HttpException('Falha no download da extensão $cleanId');
   }
 
-  static Future<Uint8List> downloadCrxFromUrl(String url) async {
+  static Future<Uint8List> downloadCrxFromUrl(String initialUrl) async {
     final client = HttpClient();
     client.userAgent =
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
     try {
-      final request = await client.getUrl(Uri.parse(url));
-      request.followRedirects = true;
-      final response = await request.close();
-      if (response.statusCode >= 200 && response.statusCode < 400) {
-        final bytesBuilder = BytesBuilder(copy: false);
-        await for (final chunk in response) {
-          bytesBuilder.add(chunk);
+      var currentUrl = initialUrl;
+      for (var redirectCount = 0; redirectCount < 10; redirectCount++) {
+        final request = await client.getUrl(Uri.parse(currentUrl));
+        request.followRedirects = false;
+        request.headers.set(HttpHeaders.acceptHeader, '*/*');
+        request.headers.set('sec-ch-ua', '"Chromium";v="131", "Not_A Brand";v="24"');
+        request.headers.set('sec-ch-ua-mobile', '?0');
+        request.headers.set('sec-ch-ua-platform', '"Windows"');
+        request.headers.set('Sec-Fetch-Site', 'cross-site');
+        request.headers.set('Sec-Fetch-Mode', 'navigate');
+        request.headers.set('Sec-Fetch-Dest', 'document');
+
+        final response = await request.close();
+
+        if (response.statusCode >= 300 && response.statusCode < 400) {
+          final location = response.headers.value(HttpHeaders.locationHeader);
+          if (location != null && location.isNotEmpty) {
+            final nextUri = Uri.parse(currentUrl).resolve(location);
+            currentUrl = nextUri.toString();
+            await response.drain<void>();
+            continue;
+          }
         }
-        final bytes = bytesBuilder.takeBytes();
-        if (bytes.isNotEmpty) return bytes;
+
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          final bytesBuilder = BytesBuilder(copy: false);
+          await for (final chunk in response) {
+            bytesBuilder.add(chunk);
+          }
+          final bytes = bytesBuilder.takeBytes();
+          if (bytes.isNotEmpty) return bytes;
+        }
+
+        throw HttpException(
+          'Falha no download da extensão (HTTP ${response.statusCode})',
+        );
       }
-      throw HttpException(
-        'Falha no download da extensão (HTTP ${response.statusCode})',
+      throw const HttpException(
+        'Muitos redirecionamentos no download da extensão.',
       );
     } finally {
       client.close();
@@ -540,6 +633,56 @@ class ChromeExtensionService {
     final allExcludeMatches = <String>{};
     final compiledScripts = StringBuffer();
 
+    // Background / Service Worker
+    if (decoded['background'] is Map) {
+      final bg = decoded['background'] as Map;
+      if (bg['service_worker'] is String) {
+        final swPath = bg['service_worker'].toString().replaceAll(r'\', '/');
+        final swKey = files.keys.firstWhere(
+          (k) =>
+              k == swPath ||
+              k.endsWith(swPath) ||
+              k == swPath.replaceFirst(RegExp(r'^\.?/'), ''),
+          orElse: () => '',
+        );
+        if (swKey.isNotEmpty &&
+            files[swKey] != null &&
+            files[swKey]!.trim().isNotEmpty) {
+          compiledScripts.writeln('''
+            // Background Service Worker ($swPath)
+            try {
+              ${files[swKey]}
+            } catch (swErr) {
+              console.warn('[Extension Service Worker] ' + ${jsonEncode(name)} + ':', swErr);
+            }
+          ''');
+        }
+      } else if (bg['scripts'] is List) {
+        for (final script in bg['scripts'] as List) {
+          final sPath = script.toString().replaceAll(r'\', '/');
+          final sKey = files.keys.firstWhere(
+            (k) =>
+                k == sPath ||
+                k.endsWith(sPath) ||
+                k == sPath.replaceFirst(RegExp(r'^\.?/'), ''),
+            orElse: () => '',
+          );
+          if (sKey.isNotEmpty &&
+              files[sKey] != null &&
+              files[sKey]!.trim().isNotEmpty) {
+            compiledScripts.writeln('''
+              // Background Script ($sPath)
+              try {
+                ${files[sKey]}
+              } catch (bgErr) {
+                console.warn('[Extension Background] ' + ${jsonEncode(name)} + ':', bgErr);
+              }
+            ''');
+          }
+        }
+      }
+    }
+
     final contentScripts = decoded['content_scripts'];
     if (contentScripts is List) {
       for (final item in contentScripts) {
@@ -662,29 +805,32 @@ class ChromeExtensionService {
       return;
     }
 
-    for (final ext in extensions) {
-      if (!ext.enabled || !ext.matchesPage(address)) continue;
+    final matching = extensions
+        .where((ext) => ext.enabled && ext.matchesPage(address))
+        .toList();
+    if (matching.isEmpty) return;
 
-      try {
-        final runtimeShim = _generateChromeApiShim(ext, uri);
-        final fullScript =
-            '''
-          (() => {
-            try {
-              $runtimeShim
-              ${ext.source}
-            } catch (err) {
-              console.warn('[DartBrowser Extension: ' + ${jsonEncode(ext.name)} + '] Erro:', err);
-            }
-          })();
-        ''';
+    // Executa em um único bloco IPC agrupado, eliminando latência de bridge do motor
+    final buffer = StringBuffer('(() => {\n');
+    for (final ext in matching) {
+      final runtimeShim = _generateChromeApiShim(ext, uri);
+      buffer.write('''
+        try {
+          $runtimeShim
+          ${ext.source}
+        } catch (err) {
+          console.warn('[DartBrowser Extension: ' + ${jsonEncode(ext.name)} + '] Erro:', err);
+        }
+      ''');
+    }
+    buffer.write('})();');
 
-        await engine.runJavaScript(fullScript);
-      } on UnsupportedError {
-        return;
-      } on Exception {
-        // Falhas não devem travar a aba
-      }
+    try {
+      await engine.runJavaScript(buffer.toString());
+    } on UnsupportedError {
+      return;
+    } on Exception {
+      // Falhas não devem travar a aba
     }
   }
 
@@ -1339,7 +1485,7 @@ class CrxExtractor {
         bytes[1] == 0x72 &&
         bytes[2] == 0x32 &&
         bytes[3] == 0x34) {
-      for (int i = 0; i <= bytes.length - 4; i++) {
+      for (int i = 4; i <= bytes.length - 4; i++) {
         if (bytes[i] == 0x50 &&
             bytes[i + 1] == 0x4B &&
             bytes[i + 2] == 0x03 &&
@@ -1352,10 +1498,146 @@ class CrxExtractor {
 
     final files = <String, String>{};
     final byteData = ByteData.sublistView(bytes);
-    int offset = zipStart;
 
+    // ESTRATÉGIA 1 (PRIMÁRIA): Leitura robusta do Diretório Central (Central Directory).
+    // Suporta 100% de arquivos com bit 3 (Data Descriptor), como os gerados pela Chrome Web Store.
+    int eocdOffset = -1;
+    final maxSearch = (bytes.length - 65557).clamp(zipStart, bytes.length - 22);
+    for (int i = bytes.length - 22; i >= maxSearch; i--) {
+      if (bytes[i] == 0x50 &&
+          bytes[i + 1] == 0x4B &&
+          bytes[i + 2] == 0x05 &&
+          bytes[i + 3] == 0x06) {
+        eocdOffset = i;
+        break;
+      }
+    }
+
+    if (eocdOffset >= 0 && eocdOffset + 22 <= bytes.length) {
+      final totalEntries = byteData.getUint16(eocdOffset + 10, Endian.little);
+      final cdSize = byteData.getUint32(eocdOffset + 12, Endian.little);
+      final cdOffset = byteData.getUint32(eocdOffset + 16, Endian.little);
+
+      int cdStart = zipStart + cdOffset;
+      if (cdStart + 4 <= bytes.length &&
+          bytes[cdStart] == 0x50 &&
+          bytes[cdStart + 1] == 0x4B &&
+          bytes[cdStart + 2] == 0x01 &&
+          bytes[cdStart + 3] == 0x02) {
+        // Offset relativo ao payload ZIP
+      } else if (cdOffset + 4 <= bytes.length &&
+          bytes[cdOffset] == 0x50 &&
+          bytes[cdOffset + 1] == 0x4B &&
+          bytes[cdOffset + 2] == 0x01 &&
+          bytes[cdOffset + 3] == 0x02) {
+        cdStart = cdOffset;
+      } else {
+        final candidate = eocdOffset - cdSize;
+        if (candidate >= zipStart &&
+            candidate + 4 <= bytes.length &&
+            bytes[candidate] == 0x50 &&
+            bytes[candidate + 1] == 0x4B &&
+            bytes[candidate + 2] == 0x01 &&
+            bytes[candidate + 3] == 0x02) {
+          cdStart = candidate;
+        }
+      }
+
+      int curr = cdStart;
+      for (int entry = 0;
+          entry < totalEntries && curr + 46 <= bytes.length;
+          entry++) {
+        if (bytes[curr] != 0x50 ||
+            bytes[curr + 1] != 0x4B ||
+            bytes[curr + 2] != 0x01 ||
+            bytes[curr + 3] != 0x02) {
+          break;
+        }
+
+        final compressionMethod = byteData.getUint16(curr + 10, Endian.little);
+        final compressedSize = byteData.getUint32(curr + 20, Endian.little);
+        final fileNameLen = byteData.getUint16(curr + 28, Endian.little);
+        final extraLen = byteData.getUint16(curr + 30, Endian.little);
+        final commentLen = byteData.getUint16(curr + 32, Endian.little);
+        final localRelOffset = byteData.getUint32(curr + 42, Endian.little);
+
+        if (curr + 46 + fileNameLen > bytes.length) break;
+        final rawName = utf8.decode(
+          bytes.sublist(curr + 46, curr + 46 + fileNameLen),
+          allowMalformed: true,
+        );
+        final normalized = rawName.replaceAll(r'\', '/');
+
+        int localHeaderOffset = zipStart + localRelOffset;
+        if (localHeaderOffset + 30 > bytes.length ||
+            bytes[localHeaderOffset] != 0x50 ||
+            bytes[localHeaderOffset + 1] != 0x4B ||
+            bytes[localHeaderOffset + 2] != 0x03 ||
+            bytes[localHeaderOffset + 3] != 0x04) {
+          if (localRelOffset + 30 <= bytes.length &&
+              bytes[localRelOffset] == 0x50 &&
+              bytes[localRelOffset + 1] == 0x4B &&
+              bytes[localRelOffset + 2] == 0x03 &&
+              bytes[localRelOffset + 3] == 0x04) {
+            localHeaderOffset = localRelOffset;
+          }
+        }
+
+        if (localHeaderOffset + 30 <= bytes.length && !normalized.endsWith('/')) {
+          final localFileNameLen =
+              byteData.getUint16(localHeaderOffset + 26, Endian.little);
+          final localExtraLen =
+              byteData.getUint16(localHeaderOffset + 28, Endian.little);
+          final dataStart =
+              localHeaderOffset + 30 + localFileNameLen + localExtraLen;
+          final dataEnd = dataStart + compressedSize;
+
+          if (dataEnd <= bytes.length) {
+            final compressedData = bytes.sublist(dataStart, dataEnd);
+            Uint8List uncompressedData;
+
+            if (compressionMethod == 0) {
+              uncompressedData = compressedData;
+            } else if (compressionMethod == 8) {
+              try {
+                uncompressedData = Uint8List.fromList(
+                  ZLibDecoder(raw: true).convert(compressedData),
+                );
+              } catch (_) {
+                uncompressedData = compressedData;
+              }
+            } else {
+              uncompressedData = compressedData;
+            }
+
+            final lower = normalized.toLowerCase();
+            if (lower.endsWith('.png') ||
+                lower.endsWith('.jpg') ||
+                lower.endsWith('.jpeg') ||
+                lower.endsWith('.gif') ||
+                lower.endsWith('.webp') ||
+                lower.endsWith('.ico')) {
+              final mime = lower.endsWith('.png')
+                  ? 'image/png'
+                  : (lower.endsWith('.ico') ? 'image/x-icon' : 'image/jpeg');
+              files[normalized] =
+                  'data:$mime;base64,${base64Encode(uncompressedData)}';
+            } else {
+              files[normalized] =
+                  utf8.decode(uncompressedData, allowMalformed: true);
+            }
+          }
+        }
+
+        curr += 46 + fileNameLen + extraLen + commentLen;
+      }
+    }
+
+    if (files.isNotEmpty) return files;
+
+    // ESTRATÉGIA 2 (FALLBACK): Leitura sequencial de Local File Headers
+    int offset = zipStart;
     while (offset + 30 <= bytes.length) {
-      // Assinatura PK\x03\x04
       if (bytes[offset] != 0x50 ||
           bytes[offset + 1] != 0x4B ||
           bytes[offset + 2] != 0x03 ||
@@ -1382,7 +1664,7 @@ class CrxExtractor {
       final dataEnd = dataStart + compressedSize;
       if (dataEnd > bytes.length) break;
 
-      if (!normalizedFileName.endsWith('/')) {
+      if (!normalizedFileName.endsWith('/') && compressedSize > 0) {
         final compressedData = bytes.sublist(dataStart, dataEnd);
         Uint8List uncompressedData;
 
@@ -1418,7 +1700,7 @@ class CrxExtractor {
         }
       }
 
-      offset = dataEnd;
+      offset = dataEnd > dataStart ? dataEnd : dataStart + 1;
     }
 
     return files;

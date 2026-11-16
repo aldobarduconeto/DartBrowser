@@ -17,6 +17,22 @@ class LibraryModal extends StatefulWidget {
     required BrowserController browser,
     int initialIndex = 0,
   }) {
+    final isDesktop = MediaQuery.sizeOf(context).width >= 700;
+    if (isDesktop) {
+      return showDialog<String>(
+        context: context,
+        builder: (_) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700, maxHeight: 620),
+            child: LibraryModal(browser: browser, initialIndex: initialIndex),
+          ),
+        ),
+      );
+    }
     return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,

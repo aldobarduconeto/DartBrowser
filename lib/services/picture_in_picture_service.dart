@@ -56,18 +56,7 @@ class PictureInPictureService {
   static const _enterAutoPiPScript = r"""
 (() => {
   try {
-    function getAllVideos(root) {
-      let vids = Array.from(root.querySelectorAll('video'));
-      const els = root.querySelectorAll('*');
-      for (const el of els) {
-        if (el.shadowRoot) {
-          vids = vids.concat(getAllVideos(el.shadowRoot));
-        }
-      }
-      return vids;
-    }
-
-    const videos = getAllVideos(document);
+    const videos = Array.from(document.querySelectorAll('video'));
     if (!videos.length) return;
 
     // Prioriza vídeo que está ativamente tocando
@@ -104,18 +93,7 @@ class PictureInPictureService {
       return;
     }
 
-    function getAllVideos(root) {
-      let vids = Array.from(root.querySelectorAll('video'));
-      const els = root.querySelectorAll('*');
-      for (const el of els) {
-        if (el.shadowRoot) {
-          vids = vids.concat(getAllVideos(el.shadowRoot));
-        }
-      }
-      return vids;
-    }
-
-    const videos = getAllVideos(document);
+    const videos = Array.from(document.querySelectorAll('video, [data-dart-auto-pip]'));
     for (const v of videos) {
       if (v.getAttribute('data-dart-auto-pip') === 'true' ||
           v.webkitPresentationMode === 'picture-in-picture') {

@@ -196,6 +196,7 @@ class BrowserController extends ChangeNotifier {
     }
     unawaited(_loadDeferred(_secondaryTab!));
     splitScreenNotifier.value = true;
+    checkMemorySaver();
     notifyListeners();
   }
 
@@ -203,6 +204,7 @@ class BrowserController extends ChangeNotifier {
     if (index < 0 || index >= tabs.length || index == selected) return;
     _secondaryTab = tabs[index];
     unawaited(_loadDeferred(_secondaryTab!));
+    checkMemorySaver();
     notifyListeners();
   }
 
@@ -215,6 +217,7 @@ class BrowserController extends ChangeNotifier {
   void closeSplitScreen() {
     splitScreenNotifier.value = false;
     _secondaryTab = null;
+    checkMemorySaver();
     notifyListeners();
   }
 
@@ -289,6 +292,8 @@ class BrowserController extends ChangeNotifier {
     FindInPageResult.empty,
   );
   final findQueryNotifier = ValueNotifier<String>('');
+  final extensionEventNotifier =
+      ValueNotifier<({String message, bool isError})?>(null);
   bool isFindInPageVisible = false;
 
   // -------------------------------------------------------------
@@ -315,6 +320,9 @@ class BrowserController extends ChangeNotifier {
       throw StateError('Não foi possível salvar os complementos.');
     }
     addons = List.unmodifiable(value);
+    if (tabs.isNotEmpty && current.address != null && !current.isIncognito) {
+      unawaited(_addonService.run(current.engine, current.address!, addons));
+    }
     notifyListeners();
   }
 
@@ -365,10 +373,18 @@ class BrowserController extends ChangeNotifier {
     String extensionIdOrUrl,
   ) async {
     var cleanId = extensionIdOrUrl.trim();
-    final match = RegExp(r'/detail/(?:[^/]+/)?([a-z]{32})').firstMatch(cleanId);
+    final match =
+        RegExp(r'/detail/(?:[^/]+/)?([a-zA-Z0-9_-]+)').firstMatch(cleanId);
     if (match != null && match.group(1) != null) {
       cleanId = match.group(1)!;
     }
+    cleanId = cleanId.split('?').first.split('#').first.trim().toLowerCase();
+
+    extensionEventNotifier.value = (
+      message: 'Baixando extensão do Web Store...',
+      isError: false,
+    );
+
     try {
       final bytes = await ChromeExtensionService.downloadCrx(cleanId);
       final addon = _addonService.importCrxBytes(bytes);
@@ -379,16 +395,28 @@ class BrowserController extends ChangeNotifier {
       if (current.address != null) {
         await _addonService.run(current.engine, current.address!, [addon]);
       }
+      extensionEventNotifier.value = (
+        message: 'Extensão "${addon.name}" instalada com sucesso!',
+        isError: false,
+      );
       return addon;
     } catch (e) {
       debugPrint(
         '[DartBrowser] Erro ao instalar extensão do Web Store ($cleanId): $e',
+      );
+      extensionEventNotifier.value = (
+        message: 'Falha ao instalar extensão: $e',
+        isError: true,
       );
       rethrow;
     }
   }
 
   Future<BrowserAddon?> installExtensionFromUrl(String url) async {
+    extensionEventNotifier.value = (
+      message: 'Baixando pacote da extensão...',
+      isError: false,
+    );
     try {
       final bytes = await ChromeExtensionService.downloadCrxFromUrl(url);
       final addon = _addonService.importCrxBytes(bytes);
@@ -399,9 +427,17 @@ class BrowserController extends ChangeNotifier {
       if (current.address != null) {
         await _addonService.run(current.engine, current.address!, [addon]);
       }
+      extensionEventNotifier.value = (
+        message: 'Extensão "${addon.name}" instalada com sucesso!',
+        isError: false,
+      );
       return addon;
     } catch (e) {
       debugPrint('[DartBrowser] Erro ao instalar extensão da URL ($url): $e');
+      extensionEventNotifier.value = (
+        message: 'Falha ao instalar extensão: $e',
+        isError: true,
+      );
       rethrow;
     }
   }
@@ -661,7 +697,7 @@ class BrowserController extends ChangeNotifier {
     final legacy = data.preferences.getStringList('session') ?? [];
     var saved = [
       for (final address in legacy)
-        (address: address, group: null as TabGroup?),
+        (address: address, group: null as TabGroup?, pinned: false),
     ];
     var index = data.preferences.getInt('selectedTab') ?? 0;
     final encoded = data.preferences.getString('groupedSession');
@@ -676,7 +712,11 @@ class BrowserController extends ChangeNotifier {
         final restoredIndex = session['selected'] as int;
         saved = [
           for (final item in session['tabs'] as List<dynamic>)
-            (address: item['address'] as String, group: byId[item['group']]),
+            (
+              address: item['address'] as String,
+              group: byId[item['group']],
+              pinned: item['pinned'] == true,
+            ),
         ];
         index = restoredIndex;
         groups.addAll(byId.values);
@@ -699,7 +739,7 @@ class BrowserController extends ChangeNotifier {
     }
     for (final entry in saved) {
       tabs.add(
-        BrowserTab()
+        BrowserTab(isPinned: entry.pinned)
           ..group = entry.group
           ..address = entry.address.isEmpty ? null : entry.address,
       );
@@ -735,6 +775,7 @@ class BrowserController extends ChangeNotifier {
     }
     if (notify) {
       _syncActiveNotifiers();
+      checkMemorySaver();
       notifyListeners();
     }
     if (address != null && address.isNotEmpty) {
@@ -761,6 +802,10 @@ class BrowserController extends ChangeNotifier {
   }
 
   Future<void> _loadDeferred(BrowserTab tab) async {
+    if (tab.isSuspended) {
+      await resumeTab(tab);
+      return;
+    }
     final address = tab.address;
     if (address == null || tab.initialization != null) return;
     await _openTab(tab, address, save: false);
@@ -848,18 +893,23 @@ class BrowserController extends ChangeNotifier {
             return NavigationDecision.prevent;
           }
 
-          // Intercepta downloads de extensões da Chrome Web Store ou pacotes .crx
+          // Intercepta downloads de extensões da loja web ou pacotes .crx
           if (request.url.contains('clients2.google.com/service/update2/crx') ||
               (request.url.endsWith('.crx') &&
                   !request.url.startsWith('file:'))) {
-            final extMatch = RegExp(r'[?&]x=id%3D([a-z]{32})')
+            final extMatch = RegExp(r'[?&]x=id%3D([a-zA-Z0-9_-]+)')
                 .firstMatch(request.url);
             final extId = extMatch?.group(1);
-            if (extId != null) {
-              unawaited(installExtensionFromWebStore(extId));
-            } else {
-              unawaited(installExtensionFromUrl(request.url));
-            }
+            unawaited(() async {
+              try {
+                // Tenta baixar diretamente da URL oficial capturada
+                await installExtensionFromUrl(request.url);
+              } catch (_) {
+                if (extId != null && extId.isNotEmpty) {
+                  await installExtensionFromWebStore(extId);
+                }
+              }
+            }());
             return NavigationDecision.prevent;
           }
 
@@ -957,6 +1007,7 @@ class BrowserController extends ChangeNotifier {
           if (error.isForMainFrame != true) return;
           tab.error = 'Não foi possível carregar esta página.';
           tab.progress = 100;
+          if (data.memorySaver) checkMemorySaver();
           if (tabs.contains(tab) && current == tab) {
             activeTabProgressNotifier.value = 100;
             _syncActiveNotifiers();
@@ -969,6 +1020,7 @@ class BrowserController extends ChangeNotifier {
           }
           tab.progress = 100;
           tab.touch();
+          if (data.memorySaver) checkMemorySaver();
 
           final historyChanged =
               savesHistory &&
@@ -1085,7 +1137,11 @@ class BrowserController extends ChangeNotifier {
         'groups': [for (final group in groups) group.toJson()],
         'tabs': [
           for (final tab in nonIncognitoTabs)
-            {'address': tab.address ?? '', 'group': tab.group?.id},
+            {
+              'address': tab.address ?? '',
+              'group': tab.group?.id,
+              if (tab.isPinned) 'pinned': true,
+            },
         ],
         'selected': nonIncognitoSelected != -1 ? nonIncognitoSelected : 0,
       });
@@ -1099,8 +1155,40 @@ class BrowserController extends ChangeNotifier {
     });
   }
 
-  // ECONOMIZADOR DE MEMÓRIA AUTOMÁTICO (LIBERA RAM DE ABAS INATIVAS)
+  // GESTÃO DINÂMICA DE POTÊNCIA E RECURSOS DO DISPOSITIVO
   Timer? _memorySaverTimer;
+  Duration get _idleTabTimeout => switch (data.performanceProfile) {
+    BrowserPerformanceProfile.highPerformance => const Duration(minutes: 60),
+    BrowserPerformanceProfile.balanced => const Duration(minutes: 20),
+    BrowserPerformanceProfile.efficiency => const Duration(minutes: 5),
+  };
+
+  Future<void> setPerformanceProfile(BrowserPerformanceProfile profile) async {
+    data.performanceProfile = profile;
+    await data.preferences.setString('performanceProfile', profile.name);
+    _applyPerformanceTuning();
+    notifyListeners();
+  }
+
+  void _applyPerformanceTuning() {
+    for (final tab in tabs) {
+      if (tab.hasEngine && tab.address != null) {
+        tab.engine
+            .runJavaScript(
+              "window.__dart_set_power_mode && window.__dart_set_power_mode('${data.performanceProfile.name}');",
+            )
+            .catchError((_) {});
+      }
+    }
+    checkMemorySaver();
+  }
+
+  void _updateTabPriority(BrowserTab tab, {required bool isForeground}) {
+    if (!tab.hasEngine || tab.address == null) return;
+    final script =
+        "window.__dart_set_tab_priority && window.__dart_set_tab_priority('${isForeground ? 'active' : 'background'}');";
+    tab.engine.runJavaScript(script).catchError((_) {});
+  }
 
   Future<void> setMemorySaver(bool enabled) async {
     data.memorySaver = enabled;
@@ -1111,32 +1199,44 @@ class BrowserController extends ChangeNotifier {
 
   void checkMemorySaver() {
     _memorySaverTimer?.cancel();
-    if (!data.memorySaver || tabs.length <= 2) return;
-    _memorySaverTimer = Timer(
-      const Duration(milliseconds: 350),
-      _suspendIdleTabs,
-    );
+    _memorySaverTimer = null;
+    if (!data.memorySaver || tabs.isEmpty) return;
+    final now = DateTime.now();
+    Duration? next;
+    for (final tab in tabs) {
+      if (!_canAutomaticallySuspend(tab)) continue;
+      final remaining = tab.lastAccessed.add(_idleTabTimeout).difference(now);
+      if (next == null || remaining < next) next = remaining;
+    }
+    if (next != null) {
+      const retryFloor = Duration(milliseconds: 350);
+      _memorySaverTimer = Timer(
+        next < retryFloor ? retryFloor : next,
+        _suspendIdleTabs,
+      );
+    }
   }
 
+  bool _canAutomaticallySuspend(BrowserTab tab) =>
+      tab != current &&
+      tab != secondaryTab &&
+      tab.initialization != null &&
+      !tab.isPinned &&
+      !tab.hasAudio &&
+      !tab.isSuspended &&
+      tab.progress == 100 &&
+      tab.address != null;
+
   void _suspendIdleTabs() {
-    if (!data.memorySaver || tabs.length <= 2) return;
+    if (!data.memorySaver || tabs.isEmpty) return;
     final now = DateTime.now();
-    final active = current;
-    final secondary = secondaryTab;
-    for (var i = 0; i < tabs.length; i++) {
-      final tab = tabs[i];
-      if (tab != active &&
-          tab != secondary &&
-          tab.initialization != null &&
-          !tab.isPinned &&
-          !tab.hasAudio &&
-          !tab.isSuspended &&
-          tab.address != null) {
-        if (now.difference(tab.lastAccessed).inMinutes >= 25) {
-          suspendTab(tab);
-        }
+    for (final tab in tabs) {
+      if (_canAutomaticallySuspend(tab) &&
+          now.difference(tab.lastAccessed) >= _idleTabTimeout) {
+        unawaited(suspendTab(tab, automatic: true));
       }
     }
+    checkMemorySaver();
   }
 
   Future<void> _refreshNavigation(
@@ -1201,12 +1301,14 @@ class BrowserController extends ChangeNotifier {
       }
     }
 
-    enteringTab.touch();
-    unawaited(_loadDeferred(enteringTab));
+    _updateTabPriority(leavingTab, isForeground: false);
+    _updateTabPriority(enteringTab, isForeground: true);
 
-    // Se a aba estava suspensa, resumir automaticamente
+    enteringTab.touch();
     if (enteringTab.isSuspended) {
-      resumeTab(enteringTab);
+      unawaited(resumeTab(enteringTab));
+    } else {
+      unawaited(_loadDeferred(enteringTab));
     }
 
     _syncActiveNotifiers();
@@ -1255,12 +1357,9 @@ class BrowserController extends ChangeNotifier {
   }
 
   void _activateCurrent() {
-    current.touch();
-    if (current.isSuspended) {
-      unawaited(resumeTab(current));
-    } else {
-      unawaited(_loadDeferred(current));
-    }
+    final tab = current;
+    tab.touch();
+    unawaited(_loadDeferred(tab));
   }
 
   void _reconcileSplit() {
@@ -1329,6 +1428,7 @@ class BrowserController extends ChangeNotifier {
       tabs.insert(insertIndex, tab);
       selected = tabs.indexOf(currentTab);
     }
+    checkMemorySaver();
     _saveSession();
     notifyListeners();
   }
@@ -1375,7 +1475,13 @@ class BrowserController extends ChangeNotifier {
   }) async {
     tab.touch();
     final uri = BrowserData.resolve(input, engine: data.searchEngine);
-    tab.address = uri.toString();
+    final address = uri.toString();
+    final generation = ++tab.navigationGeneration;
+    bool isCurrentRequest() =>
+        tab.navigationGeneration == generation &&
+        tabs.contains(tab) &&
+        tab.address == address;
+    tab.address = address;
     tab.title = null;
     tab.isReaderMode = false;
     tab.isSuspended = false;
@@ -1388,11 +1494,11 @@ class BrowserController extends ChangeNotifier {
     }
     try {
       await _ensureConfigured(tab);
-      if (tabs.contains(tab) && tab.address == uri.toString()) {
+      if (isCurrentRequest()) {
         await tab.engine.loadRequest(uri);
       }
     } on Exception {
-      if (!tabs.contains(tab) || tab.address != uri.toString()) return;
+      if (!isCurrentRequest()) return;
       tab.error = tab.isIncognito && !tab.hasEngine
           ? 'A navegação anônima isolada não está disponível neste motor.'
           : 'Não foi possível abrir este endereço.';
@@ -1555,7 +1661,7 @@ class BrowserController extends ChangeNotifier {
   // -------------------------------------------------------------
   // ECONOMIZADOR DE MEMÓRIA (TAB SUSPEND)
   // -------------------------------------------------------------
-  Future<void> suspendTab(BrowserTab tab) async {
+  Future<void> suspendTab(BrowserTab tab, {bool automatic = false}) async {
     if (!tabs.contains(tab) ||
         tab == current ||
         tab == secondaryTab ||
@@ -1575,6 +1681,11 @@ class BrowserController extends ChangeNotifier {
           tab == secondaryTab) {
         return;
       }
+      if (automatic && (!data.memorySaver || tab.isPinned || tab.hasAudio)) {
+        tab.isSuspended = false;
+        checkMemorySaver();
+        return;
+      }
       await tab.engine.loadHtmlString('''
         <!DOCTYPE html>
         <html>
@@ -1586,6 +1697,8 @@ class BrowserController extends ChangeNotifier {
       ''');
     } catch (_) {
       tab.isSuspended = false;
+      tab.touch();
+      checkMemorySaver();
     }
     _update(tab);
   }
@@ -1884,6 +1997,22 @@ class BrowserController extends ChangeNotifier {
       if (decoded is! Map<String, dynamic>) return;
 
       final type = decoded['type'] as String?;
+      if (type == 'shield_stats') {
+        final ads = (decoded['ads'] as num?)?.toInt() ?? 0;
+        final trackers = (decoded['trackers'] as num?)?.toInt() ?? 0;
+        if (ads > 0 || trackers > 0) {
+          final target = tab ?? (tabs.isNotEmpty ? current : null);
+          if (target != null) {
+            target.blockedAdsCount += ads;
+            target.blockedTrackersCount += trackers;
+            data.totalBlockedAds += ads;
+            data.totalBlockedTrackers += trackers;
+            if (!target.isIncognito) _saveShieldStats();
+            notifyListeners();
+          }
+        }
+        return;
+      }
       if (type == 'install_webstore') {
         if (tab == null || tab.isIncognito || !tabs.contains(tab)) return;
         final extId = decoded['extensionId'] as String?;
@@ -1893,10 +2022,12 @@ class BrowserController extends ChangeNotifier {
         return;
       }
       if (type == 'audio') {
+        if (tabs.isEmpty || (tab != null && !tabs.contains(tab))) return;
         final targetTab = tab ?? current;
         final hasAudio = decoded['hasAudio'] as bool? ?? false;
         if (targetTab.hasAudio != hasAudio) {
           targetTab.hasAudio = hasAudio;
+          checkMemorySaver();
           notifyListeners();
         }
         return;
@@ -2096,10 +2227,10 @@ class BrowserController extends ChangeNotifier {
       window.addEventListener('emptied', checkAudioState, true);
       checkAudioState();
 
-      // 4. Interceptador de Instalação na Chrome Web Store
+      // 4. Interceptador de Instalação na Loja de Extensões Web
       if (window.location.hostname.indexOf('chromewebstore.google.com') !== -1) {
         function checkWebStoreButtons() {
-          var match = window.location.pathname.match(/\/detail\/(?:[^\/]+\/)?([a-z]{32})/);
+          var match = window.location.pathname.match(/\/detail\/(?:[^\/]+\/)?([a-zA-Z0-9_-]+)/);
           if (!match || !match[1]) return;
           var extId = match[1];
 
@@ -2121,8 +2252,22 @@ class BrowserController extends ChangeNotifier {
             }
           }
         }
-        setInterval(checkWebStoreButtons, 800);
+        checkWebStoreButtons();
+        var storeObserver = new MutationObserver(checkWebStoreButtons);
+        var targetObs = document.body || document.documentElement;
+        if (targetObs) storeObserver.observe(targetObs, { childList: true, subtree: true });
       }
+
+      // 5. Otimizador de Potência Total e Recursos de Hardware (CPU & GPU)
+      window.__dart_power_mode = 'highPerformance';
+      window.__dart_set_power_mode = function(mode) {
+        window.__dart_power_mode = mode;
+      };
+
+      var isTabForeground = true;
+      window.__dart_set_tab_priority = function(priority) {
+        isTabForeground = (priority === 'active');
+      };
     })();
   """;
 

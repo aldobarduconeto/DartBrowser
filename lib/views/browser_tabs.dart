@@ -58,30 +58,24 @@ class BrowserTabs extends StatelessWidget {
     }
 
     // BOTÃO "+" COLOCADO DIRETAMENTE AO LADO DA ÚLTIMA ABA NO MODO HORIZONTAL
-    entries.add(
-      DragTarget<BrowserTab>(
-        onWillAcceptWithDetails: (_) => browser.tabs.isNotEmpty,
-        onAcceptWithDetails: (details) {
-          final anchor = browser.tabs.last;
-          if (identical(anchor, details.data)) {
-            browser.moveToGroup(details.data, null);
-          } else {
-            browser.placeTab(details.data, anchor, after: true, ungroup: true);
-          }
-        },
-        builder: (context, candidates, _) => Tooltip(
-          message: 'Solte aqui para mover ao fim e retirar do grupo',
-          child: Container(
-            width: vertical ? null : 30,
-            height: 34,
-            color: candidates.isEmpty ? null : colors.primaryContainer,
-            child: const Icon(Icons.drag_indicator, size: 17),
+    if (!vertical) {
+      entries.add(
+        DragTarget<BrowserTab>(
+          onWillAcceptWithDetails: (_) => browser.tabs.isNotEmpty,
+          onAcceptWithDetails: (details) {
+            final anchor = browser.tabs.last;
+            if (identical(anchor, details.data)) {
+              browser.moveToGroup(details.data, null);
+            } else {
+              browser.placeTab(details.data, anchor, after: true, ungroup: true);
+            }
+          },
+          builder: (context, candidates, _) => _inlineAddButton(
+            context,
+            isDropCandidate: candidates.isNotEmpty,
           ),
         ),
-      ),
-    );
-    if (!vertical) {
-      entries.add(_inlineAddButton(context));
+      );
     } else {
       entries.add(
         DragTarget<BrowserTab>(
@@ -307,7 +301,10 @@ class BrowserTabs extends StatelessWidget {
     );
   }
 
-  Widget _inlineAddButton(BuildContext context) {
+  Widget _inlineAddButton(
+    BuildContext context, {
+    bool isDropCandidate = false,
+  }) {
     final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -316,14 +313,17 @@ class BrowserTabs extends StatelessWidget {
           width: 28,
           height: 28,
           child: Tooltip(
-            message: 'Nova aba (Ctrl+T)',
+            message: 'Nova guia (Ctrl+T)',
             child: InkWell(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(14),
               onTap: () => onNewTab(null),
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
+                  shape: BoxShape.circle,
+                  color: isDropCandidate
+                      ? colors.primary.withValues(alpha: 0.3)
+                      : colors.surfaceContainerHighest.withValues(alpha: 0.45),
                 ),
                 child: const Icon(Icons.add_rounded, size: 18),
               ),
@@ -576,39 +576,24 @@ class BrowserTabs extends StatelessWidget {
       onSecondaryTapUp: (details) =>
           _showTabContextMenu(context, tab, index, details.globalPosition),
       actions: [
-        if (tab.hasAudio && !tab.isMuted)
+        if (tab.hasAudio)
           Padding(
             padding: const EdgeInsets.only(right: 2),
             child: Tooltip(
-              message: 'Aba reproduzindo áudio. Clique para silenciar',
+              message: tab.isMuted
+                  ? 'Aba silenciada. Clique para desativar mudo'
+                  : 'Aba reproduzindo áudio. Clique para silenciar',
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
                 onTap: () => browser.toggleMuteTab(tab),
-                child: const Padding(
-                  padding: EdgeInsets.all(2),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
                   child: Icon(
-                    Icons.volume_up_rounded,
+                    tab.isMuted
+                        ? Icons.volume_off_rounded
+                        : Icons.volume_up_rounded,
                     size: 14,
-                    color: Color(0xFF2563EB),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        if (tab.isMuted)
-          Padding(
-            padding: const EdgeInsets.only(right: 2),
-            child: Tooltip(
-              message: 'Aba silenciada. Clique para desativar mudo',
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () => browser.toggleMuteTab(tab),
-                child: const Padding(
-                  padding: EdgeInsets.all(2),
-                  child: Icon(
-                    Icons.volume_off_rounded,
-                    size: 14,
-                    color: Colors.red,
+                    color: tab.isMuted ? Colors.red : colors.primary,
                   ),
                 ),
               ),
@@ -616,13 +601,19 @@ class BrowserTabs extends StatelessWidget {
           ),
         if (!tab.isPinned)
           Tooltip(
-            message: 'Fechar aba',
+            message: 'Fechar guia (Ctrl+W)',
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
               onTap: () => browser.closeTab(index),
-              child: const Padding(
-                padding: EdgeInsets.all(3),
-                child: Icon(Icons.close_rounded, size: 14),
+              child: Padding(
+                padding: const EdgeInsets.all(3),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 13,
+                  color: isSelected
+                      ? colors.onSurface
+                      : colors.onSurfaceVariant.withValues(alpha: 0.8),
+                ),
               ),
             ),
           ),
@@ -765,10 +756,12 @@ class BrowserTabs extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: vertical
+          ? BorderRadius.circular(8)
+          : const BorderRadius.vertical(top: Radius.circular(8)),
       side: selected && !isGroupHeader
           ? BorderSide(
-              color: colors.outlineVariant.withValues(alpha: 0.25),
+              color: colors.outlineVariant.withValues(alpha: 0.2),
               width: 0.8,
             )
           : BorderSide.none,
@@ -777,33 +770,56 @@ class BrowserTabs extends StatelessWidget {
     final tabColor = selected
         ? (isGroupHeader
               ? (groupColor?.withValues(alpha: 0.15) ?? colors.primaryContainer)
-              : colors.surfaceContainerHighest.withValues(alpha: 0.75))
+              : colors.surface)
         : (isGroupHeader
               ? colors.surfaceContainerHighest.withValues(alpha: 0.3)
               : Colors.transparent);
 
+    final activeBorderColor = groupColor ?? colors.primary;
+
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final defaultTabWidth = screenWidth < 768 ? 145.0 : 195.0;
+
     return Padding(
       key: key,
-      padding: EdgeInsets.symmetric(
-        horizontal: vertical ? 4 : 2,
-        vertical: vertical ? 2 : 0,
+      padding: EdgeInsets.only(
+        left: vertical ? 4 : 2,
+        right: vertical ? 4 : 2,
+        top: vertical ? 2 : (selected ? 3 : 5),
+        bottom: vertical ? 2 : 0,
       ),
       child: Center(
         child: SizedBox(
-          width: vertical ? null : (isPinned ? 40.0 : 190.0),
-          height: vertical ? 36 : 32,
+          width: vertical ? null : (isPinned ? 42.0 : defaultTabWidth),
+          height: vertical ? 36 : (selected ? 37 : 35),
           child: Opacity(
-            opacity: isSuspended ? 0.6 : 1.0,
+            opacity: isSuspended ? 0.65 : 1.0,
             child: Material(
               color: tabColor,
               shape: shape,
               elevation: selected && !isGroupHeader ? 1 : 0,
-              shadowColor: Colors.black.withValues(alpha: 0.1),
+              shadowColor: Colors.black.withValues(alpha: 0.08),
               child: InkWell(
                 customBorder: shape,
                 onTap: onTap,
                 onSecondaryTapUp: onSecondaryTapUp,
-                child: Padding(
+                hoverColor: selected
+                    ? null
+                    : colors.surfaceContainerHighest.withValues(alpha: 0.4),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: vertical
+                        ? BorderRadius.circular(8)
+                        : const BorderRadius.vertical(top: Radius.circular(8)),
+                    border: selected && !vertical && !isGroupHeader
+                        ? Border(
+                            top: BorderSide(
+                              color: activeBorderColor,
+                              width: 2.5,
+                            ),
+                          )
+                        : null,
+                  ),
                   padding: EdgeInsets.symmetric(
                     horizontal: (compact || isPinned) ? 0 : 8,
                   ),
@@ -812,17 +828,6 @@ class BrowserTabs extends StatelessWidget {
                         ? MainAxisAlignment.center
                         : MainAxisAlignment.start,
                     children: [
-                      // Barra vertical indicadora na aba ativa
-                      if (selected && !vertical && !isPinned && !isGroupHeader)
-                        Container(
-                          width: 3,
-                          height: 14,
-                          margin: const EdgeInsets.only(right: 6),
-                          decoration: BoxDecoration(
-                            color: groupColor ?? colors.primary,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
                       leading,
                       if (!compact && !isPinned) ...[
                         const SizedBox(width: 8),
@@ -832,7 +837,7 @@ class BrowserTabs extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 12.5,
                               fontWeight: selected
                                   ? FontWeight.w600
                                   : FontWeight.normal,

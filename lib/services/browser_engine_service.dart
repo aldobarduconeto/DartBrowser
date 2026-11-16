@@ -11,7 +11,7 @@ class BrowserEngineService {
   bool get usesWebView2 => defaultTargetPlatform == TargetPlatform.windows;
 
   String get name => switch (defaultTargetPlatform) {
-    TargetPlatform.windows => 'Microsoft Edge WebView2',
+    TargetPlatform.windows => 'Motor Web Nativo (Windows)',
     TargetPlatform.android => 'Android System WebView',
     TargetPlatform.iOS || TargetPlatform.macOS => 'WKWebView',
     TargetPlatform.linux => 'WebKitGTK',

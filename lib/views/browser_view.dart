@@ -48,6 +48,7 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
     browser.addListener(syncAddress);
     addressFocus.addListener(syncAddress);
     browser.linkContextNotifier.addListener(_onLinkContext);
+    browser.extensionEventNotifier.addListener(_onExtensionEvent);
     syncAddress();
   }
 
@@ -104,6 +105,20 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
     }
   }
 
+  void _onExtensionEvent() {
+    final event = browser.extensionEventNotifier.value;
+    if (event == null || !mounted) return;
+    browser.extensionEventNotifier.value = null;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(event.message),
+        backgroundColor:
+            event.isError ? Colors.red.shade800 : Colors.green.shade800,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void syncAddress() {
     if (addressFocus.hasFocus) return;
     final value = browser.current.address ?? '';
@@ -113,6 +128,7 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    browser.extensionEventNotifier.removeListener(_onExtensionEvent);
     browser.linkContextNotifier.removeListener(_onLinkContext);
     browser.removeListener(syncAddress);
     addressFocus.dispose();
@@ -592,11 +608,13 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
       listenable: browser,
       builder: (context, _) {
         final tab = browser.current;
+        final media = MediaQuery.sizeOf(context);
         final tabletLayout =
             !WindowService.isDesktop &&
             !widget.isTv &&
-            MediaQuery.sizeOf(context).shortestSide >= 600;
-        final mobileLayout = !WindowService.isDesktop && !tabletLayout;
+            media.shortestSide >= 600;
+        final mobileLayout = (!WindowService.isDesktop && !tabletLayout) ||
+            (!WindowService.isDesktop && media.width < 600);
         final tabsWidget = BrowserTabs(
           browser: browser,
           vertical: browser.verticalTabs,
@@ -876,26 +894,13 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                                   true)
                             _buildWebStoreBanner(context, tab.address!),
 
-                          // ÁREA DE CONTEÚDO DA PÁGINA (DESIGN FLOATING FRAMED CANVAS)
+                          // ÁREA DE CONTEÚDO DA PÁGINA (DESIGN NATIVO SEAMLESS DOS PRINCIPAIS NAVEGADORES)
                           Expanded(
                             key: const ValueKey('pageViewport'),
                             child: Container(
-                              margin: isFullScreen
-                                  ? EdgeInsets.zero
-                                  : const EdgeInsets.fromLTRB(4, 2, 4, 4),
+                              margin: EdgeInsets.zero,
                               decoration: BoxDecoration(
                                 color: colors.surface,
-                                borderRadius: isFullScreen
-                                    ? BorderRadius.zero
-                                    : BorderRadius.circular(10),
-                                border: isFullScreen
-                                    ? null
-                                    : Border.all(
-                                        color: colors.outlineVariant.withValues(
-                                          alpha: 0.25,
-                                        ),
-                                        width: 1,
-                                      ),
                               ),
                               clipBehavior: Clip.hardEdge,
                               child: Stack(
@@ -928,8 +933,7 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                                           final mountedTabs = [
                                             for (final item in browser.tabs)
                                               if (identical(item, tab) ||
-                                                  (!browser.data.memorySaver &&
-                                                      item.hasEngine &&
+                                                  (item.hasEngine &&
                                                       item.address != null &&
                                                       !item.isSuspended &&
                                                       (!isSplit ||
@@ -952,22 +956,26 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
                                                         in mountedTabs)
                                                       KeyedSubtree(
                                                         key: ObjectKey(item),
-                                                        child:
-                                                            item.address ==
-                                                                    null ||
-                                                                !item.hasEngine
-                                                            ? StartPage(
-                                                                browser:
-                                                                    browser,
-                                                                onSubmit:
-                                                                    submit,
-                                                                onShowSettings:
-                                                                    showSettings,
-                                                              )
-                                                            : WebViewWidget(
-                                                                controller:
-                                                                    item.engine,
-                                                              ),
+                                                        child: TickerMode(
+                                                          enabled: item == tab,
+                                                          child:
+                                                              item.address ==
+                                                                      null ||
+                                                                  !item
+                                                                      .hasEngine
+                                                              ? StartPage(
+                                                                  browser:
+                                                                      browser,
+                                                                  onSubmit:
+                                                                      submit,
+                                                                  onShowSettings:
+                                                                      showSettings,
+                                                                )
+                                                              : WebViewWidget(
+                                                                  controller:
+                                                                      item.engine,
+                                                                ),
+                                                        ),
                                                       ),
                                                   ],
                                                 ),
@@ -1172,7 +1180,8 @@ class _BrowserViewState extends State<BrowserView> with WidgetsBindingObserver {
   }
 
   Widget _buildWebStoreBanner(BuildContext context, String address) {
-    final match = RegExp(r'/detail/(?:[^/]+/)?([a-z]{32})').firstMatch(address);
+    final match =
+        RegExp(r'/detail/(?:[^/]+/)?([a-zA-Z0-9_-]+)').firstMatch(address);
     final extId = match?.group(1);
     if (extId == null) return const SizedBox.shrink();
 

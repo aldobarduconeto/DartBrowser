@@ -196,19 +196,19 @@ class _BrowserSettingsState extends State<BrowserSettings> {
     final result = await showDialog<({String? folder})>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Runtime do WebView2'),
+        title: const Text('Runtime do Motor Web'),
         scrollable: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Use o Evergreen instalado no Windows ou informe a pasta extraída de um WebView2 Fixed Version. A alteração é aplicada ao reabrir o navegador.',
+              'Use o runtime padrão do sistema ou informe uma pasta com uma versão autônoma do motor. A alteração é aplicada ao reabrir o navegador.',
             ),
             const SizedBox(height: 12),
             TextFormField(
               initialValue: folder,
               decoration: const InputDecoration(
-                labelText: 'Pasta do Fixed Version',
+                labelText: 'Pasta da versão autônoma',
               ),
               onChanged: (value) => folder = value.trim(),
             ),
@@ -221,7 +221,7 @@ class _BrowserSettingsState extends State<BrowserSettings> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, (folder: null as String?)),
-            child: const Text('Usar Evergreen'),
+            child: const Text('Padrão do Sistema'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, (folder: folder)),
@@ -235,7 +235,7 @@ class _BrowserSettingsState extends State<BrowserSettings> {
     var message = 'Runtime selecionado. Feche e reabra o navegador.';
     try {
       if (path != null && !await browser.engine.isFixedRuntimeFolder(path)) {
-        message = 'Informe a pasta que contém msedgewebview2.exe e msedge.dll.';
+        message = 'Informe uma pasta válida contendo os binários do motor web.';
       } else {
         await browser.setFixedRuntimePath(path);
       }
@@ -414,35 +414,64 @@ class _BrowserSettingsState extends State<BrowserSettings> {
     if (mounted && pages != null) await browser.setStartupPages(pages);
   }
 
-  Widget section(BuildContext context, String title, List<Widget> options) =>
-      Card(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Semantics(
-                header: true,
-                child: Text(
-                  browserText(context, title),
-                  style: Theme.of(context).textTheme.titleMedium,
+  Widget section(BuildContext context, String title, List<Widget> options) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colors.outlineVariant.withValues(alpha: 0.35),
+          width: 0.9,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+            child: Semantics(
+              header: true,
+              child: Text(
+                browserText(context, title),
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: colors.primary,
+                  letterSpacing: 0.2,
                 ),
               ),
             ),
-            ...options,
+          ),
+          for (var i = 0; i < options.length; i++) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                thickness: 0.6,
+                indent: 16,
+                endIndent: 16,
+                color: colors.outlineVariant.withValues(alpha: 0.2),
+              ),
+            options[i],
           ],
-        ),
-      );
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
+      elevation: 0,
+      scrolledUnderElevation: 1,
       leading: WindowService.isMacOS
           ? const Padding(
               padding: EdgeInsets.only(left: 78.0),
               child: BackButton(),
             )
-          : null,
+          : const BackButton(),
       leadingWidth: WindowService.isMacOS ? 126.0 : null,
       title: GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -451,9 +480,14 @@ class _BrowserSettingsState extends State<BrowserSettings> {
         child: SizedBox(
           width: double.infinity,
           height: kToolbarHeight,
-          child: const Align(
-            alignment: Alignment.centerLeft,
-            child: BrowserText('Configurações'),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 780),
+              child: const Align(
+                alignment: Alignment.centerLeft,
+                child: BrowserText('Configurações'),
+              ),
+            ),
           ),
         ),
       ),
@@ -464,38 +498,86 @@ class _BrowserSettingsState extends State<BrowserSettings> {
     ),
     body: ListenableBuilder(
       listenable: browser,
-      builder: (context, _) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(
-              24,
-              16,
-              24,
-              24 + MediaQuery.paddingOf(context).bottom,
-            ),
-            children: [
-              section(context, 'Idioma', [LanguageTile(browser: browser)]),
-              section(context, 'Navegação', [
-                SearchEngineTile(browser: browser),
-                ListTile(
-                  leading: const Icon(Icons.home_outlined),
-                  title: const BrowserText('Página inicial'),
-                  subtitle: Text(
-                    browser.data.home ?? 'Nenhuma página definida',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onTap: editHome,
-                  trailing: browser.data.home == null
-                      ? null
-                      : IconButton(
-                          tooltip: 'Remover página inicial',
-                          onPressed: () => browser.setHome(null),
-                          icon: const Icon(Icons.close),
+      builder: (context, _) {
+        final colors = Theme.of(context).colorScheme;
+        final screenWidth = MediaQuery.sizeOf(context).width;
+        final hPad = screenWidth < 500 ? 12.0 : 24.0;
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 780),
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(
+                hPad,
+                16,
+                hPad,
+                24 + MediaQuery.paddingOf(context).bottom,
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: colors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        child: Icon(
+                          Icons.settings_suggest_rounded,
+                          color: colors.primary,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            browserText(context, 'Configurações'),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            browserText(
+                              context,
+                              'Personalize preferências, motor web, privacidade e aparência.',
+                            ),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ]),
+                section(context, 'Geral & Navegação', [
+                  LanguageTile(browser: browser),
+                  SearchEngineTile(browser: browser),
+                  ListTile(
+                    leading: const Icon(Icons.home_outlined),
+                    title: const BrowserText('Página inicial'),
+                    subtitle: Text(
+                      browser.data.home ?? 'Nenhuma página definida',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: editHome,
+                    trailing: browser.data.home == null
+                        ? null
+                        : IconButton(
+                            tooltip: 'Remover página inicial',
+                            onPressed: () => browser.setHome(null),
+                            icon: const Icon(Icons.close),
+                          ),
+                  ),
+                ]),
 
               section(context, 'Privacidade, AdBlock & Anti-Rastreio', [
                 SwitchListTile(
@@ -575,15 +657,45 @@ class _BrowserSettingsState extends State<BrowserSettings> {
                 ),
               ]),
 
-              section(context, 'Desempenho e Economia de Memória', [
+              section(context, 'Potência e Desempenho do Dispositivo', [
+                ListTile(
+                  leading: Icon(browser.data.performanceProfile.icon),
+                  title: const Text('Perfil de Potência e Desempenho'),
+                  subtitle: Text(browser.data.performanceProfile.description),
+                  trailing: DropdownButton<BrowserPerformanceProfile>(
+                    value: browser.data.performanceProfile,
+                    underline: const SizedBox.shrink(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => browser.setPerformanceProfile(val));
+                      }
+                    },
+                    items: [
+                      for (final profile in BrowserPerformanceProfile.values)
+                        DropdownMenuItem(
+                          value: profile,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(profile.icon, size: 18),
+                              const SizedBox(width: 8),
+                              Text(profile.label),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 SwitchListTile(
-                  secondary: const Icon(Icons.speed_rounded),
-                  title: const Text('Economizador de memória'),
+                  secondary: const Icon(Icons.bedtime_outlined),
+                  title: const Text('Economizador de Memória (Sleeping Tabs)'),
                   subtitle: const Text(
-                    'Desativado, mantém abas visitadas prontas para alternar. Ativado, reduz a memória usada por abas em segundo plano.',
+                    'Hiberna abas inativas em segundo plano para liberar memória RAM e poupar processamento.',
                   ),
                   value: browser.data.memorySaver,
-                  onChanged: browser.setMemorySaver,
+                  onChanged: (val) {
+                    setState(() => browser.setMemorySaver(val));
+                  },
                 ),
               ]),
 
@@ -604,7 +716,7 @@ class _BrowserSettingsState extends State<BrowserSettings> {
 
               section(context, 'Modo Leitura (Reader Mode)', [
                 ListTile(
-                  leading: const Icon(Icons.chrome_reader_mode_outlined),
+                  leading: const Icon(Icons.article_outlined),
                   title: const Text('Tema do modo leitura'),
                   trailing: DropdownButton<String>(
                     value: browser.data.readerTheme,
@@ -893,9 +1005,9 @@ class _BrowserSettingsState extends State<BrowserSettings> {
                 if (browser.engine.usesWebView2)
                   ListTile(
                     leading: const Icon(Icons.settings_suggest_outlined),
-                    title: const Text('Escolher runtime do WebView2'),
+                    title: const Text('Configurar versão do Motor Web'),
                     subtitle: Text(
-                      browser.fixedRuntimePath ?? 'Evergreen do sistema',
+                      browser.fixedRuntimePath ?? 'Padrão do sistema',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -966,7 +1078,8 @@ class _BrowserSettingsState extends State<BrowserSettings> {
             ],
           ),
         ),
-      ),
-    ),
-  );
+      );
+    },
+  ),
+);
 }

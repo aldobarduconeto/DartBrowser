@@ -22,6 +22,8 @@ class AdBlockShieldService {
   AdBlockShieldService(this.preferences);
 
   final SharedPreferences preferences;
+  final Map<String, BlockResult> _decisionCache = {};
+  static const int _maxCacheSize = 2048;
 
   // -------------------------------------------------------------
   // LISTA DE PARÂMETROS DE RASTREAMENTO PARA LIMPEZA DE URL
@@ -176,51 +178,88 @@ class AdBlockShieldService {
     if (targetHost.isEmpty) return BlockResult.notBlocked;
 
     // Não bloqueia a própria navegação do site raiz para si mesmo
-    if (mainHost != null &&
-        (targetHost == mainHost.toLowerCase() ||
-            targetHost.endsWith('.${mainHost.toLowerCase()}'))) {
-      return BlockResult.notBlocked;
+    if (mainHost != null) {
+      final cleanMain = mainHost.toLowerCase();
+      if (targetHost == cleanMain || targetHost.endsWith('.$cleanMain')) {
+        return BlockResult.notBlocked;
+      }
     }
 
-    // 2. Verificação de Anúncios
+    // Cache ultra-rápido para evitar cálculos repetidos e liberar 100% da velocidade da CPU
+    final cacheKey = '$targetHost|$adBlockEnabled|$antiTrackingEnabled';
+    final cached = _decisionCache[cacheKey];
+    if (cached != null) return cached;
+
+    BlockResult result = BlockResult.notBlocked;
+
+    // 2. Verificação de Anúncios com busca O(1) de alta performance
     if (adBlockEnabled) {
-      for (final domain in _adDomains) {
-        if (targetHost == domain || targetHost.endsWith('.$domain')) {
-          return BlockResult(
-            blocked: true,
-            type: BlockType.ad,
-            reason: 'Rede de anúncio bloqueada: $domain',
-          );
+      if (_adDomains.contains(targetHost)) {
+        result = BlockResult(
+          blocked: true,
+          type: BlockType.ad,
+          reason: 'Rede de anúncio bloqueada: $targetHost',
+        );
+      } else {
+        var dotIndex = targetHost.indexOf('.');
+        while (dotIndex != -1 && dotIndex < targetHost.length - 1) {
+          final parentDomain = targetHost.substring(dotIndex + 1);
+          if (_adDomains.contains(parentDomain)) {
+            result = BlockResult(
+              blocked: true,
+              type: BlockType.ad,
+              reason: 'Rede de anúncio bloqueada: $parentDomain',
+            );
+            break;
+          }
+          dotIndex = targetHost.indexOf('.', dotIndex + 1);
         }
       }
     }
 
-    // 3. Verificação de Rastreadores
-    if (antiTrackingEnabled) {
-      for (final domain in _trackerDomains) {
-        if (targetHost == domain || targetHost.endsWith('.$domain')) {
-          return BlockResult(
-            blocked: true,
-            type: BlockType.tracker,
-            reason: 'Rastreador de telemetria bloqueado: $domain',
-          );
-        }
-      }
-
-      // Verificação de caminhos de tracking específicos
-      final fullPath = '${requestUri.host}${requestUri.path}'.toLowerCase();
-      if (fullPath.contains('facebook.com/tr') ||
-          fullPath.contains('analytics') ||
-          fullPath.contains('pixel')) {
-        return const BlockResult(
+    // 3. Verificação de Rastreadores com busca O(1) de alta performance
+    if (!result.blocked && antiTrackingEnabled) {
+      if (_trackerDomains.contains(targetHost)) {
+        result = BlockResult(
           blocked: true,
           type: BlockType.tracker,
-          reason: 'Pixel de rastreamento bloqueado',
+          reason: 'Rastreador de telemetria bloqueado: $targetHost',
         );
+      } else {
+        var dotIndex = targetHost.indexOf('.');
+        while (dotIndex != -1 && dotIndex < targetHost.length - 1) {
+          final parentDomain = targetHost.substring(dotIndex + 1);
+          if (_trackerDomains.contains(parentDomain)) {
+            result = BlockResult(
+              blocked: true,
+              type: BlockType.tracker,
+              reason: 'Rastreador de telemetria bloqueado: $parentDomain',
+            );
+            break;
+          }
+          dotIndex = targetHost.indexOf('.', dotIndex + 1);
+        }
+      }
+
+      if (!result.blocked) {
+        final fullPath = '${requestUri.host}${requestUri.path}'.toLowerCase();
+        if (fullPath.contains('facebook.com/tr') ||
+            fullPath.contains('analytics') ||
+            fullPath.contains('pixel')) {
+          result = const BlockResult(
+            blocked: true,
+            type: BlockType.tracker,
+            reason: 'Pixel de rastreamento bloqueado',
+          );
+        }
       }
     }
 
-    return BlockResult.notBlocked;
+    if (_decisionCache.length >= _maxCacheSize) {
+      _decisionCache.clear();
+    }
+    _decisionCache[cacheKey] = result;
+    return result;
   }
 
   bool isWhitelisted(String host, List<String> whitelist) {
@@ -276,17 +315,25 @@ class AdBlockShieldService {
 
         const notifyStats = () => {
           if (blockedAds > 0 || blockedTrackers > 0) {
-            try {
-              const iframe = document.createElement('iframe');
-              iframe.style.display = 'none';
-              iframe.src = 'dart-shield://stats?ads=' + blockedAds + '&trackers=' + blockedTrackers;
-              (document.body || document.documentElement).appendChild(iframe);
-              setTimeout(() => iframe.remove(), 100);
-            } catch (_) {}
+            if (window.DartLinkHandler && window.DartLinkHandler.postMessage) {
+              window.DartLinkHandler.postMessage(JSON.stringify({
+                type: 'shield_stats',
+                ads: blockedAds,
+                trackers: blockedTrackers
+              }));
+            } else {
+              try {
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = 'dart-shield://stats?ads=' + blockedAds + '&trackers=' + blockedTrackers;
+                (document.body || document.documentElement).appendChild(iframe);
+                setTimeout(() => iframe.remove(), 100);
+              } catch (_) {}
+            }
           }
         };
 
-        // 1. INJEÇÃO DE CSS COSMÉTICO ANTI-ANÚNCIO
+        // 1. INJEÇÃO DE CSS COSMÉTICO ANTI-ANÚNCIO DE ALTA PERFORMANCE
         ${blockAds ? '''
           try {
             const style = document.createElement('style');
@@ -295,24 +342,39 @@ class AdBlockShieldService {
             (document.head || document.documentElement).appendChild(style);
           } catch (_) {}
 
-          // Limpeza ativa de elementos de anúncio no DOM
-          const cleanAds = () => {
-            const selectors = [
+          // Limpeza orientada a eventos via MutationObserver (zero consumo de CPU quando ocioso)
+          const adSelector = [
               '.ad', '.ads', '.adsbygoogle', '[id*="google_ads"]',
               '.ad-banner', '.banner-ad', '.sponsored-post',
               'iframe[src*="doubleclick"]', 'iframe[src*="adservice"]'
-            ];
-            selectors.forEach(sel => {
-              document.querySelectorAll(sel).forEach(el => {
-                if (el.style.display !== 'none') {
-                  el.style.display = 'none';
-                  blockedAds++;
-                }
-              });
+          ].join(',');
+          const cleanAds = () => {
+            if (document.hidden) return;
+            document.querySelectorAll(adSelector).forEach(el => {
+              if (el.style.display !== 'none') {
+                el.style.display = 'none';
+                blockedAds++;
+              }
             });
           };
           cleanAds();
-          setInterval(cleanAds, 2500);
+          document.addEventListener('visibilitychange', cleanAds);
+
+          let cleanRaf = null;
+          const observer = new MutationObserver(() => {
+            if (cleanRaf) return;
+            cleanRaf = requestAnimationFrame(() => {
+              cleanRaf = null;
+              cleanAds();
+            });
+          });
+          if (document.body) {
+            observer.observe(document.body, { childList: true, subtree: true });
+          } else {
+            document.addEventListener('DOMContentLoaded', () => {
+              if (document.body) observer.observe(document.body, { childList: true, subtree: true });
+            });
+          }
         ''' : ''}
 
         // 2. PROTEÇÃO ANTI-RASTREIO (BEACON, PING E TELEMETRIA)

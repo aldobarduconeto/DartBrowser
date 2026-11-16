@@ -80,83 +80,92 @@ class StartPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Barra de busca central
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                // Barra de busca central em cápsula moderna integrada
+                Container(
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHighest.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: colors.outlineVariant.withValues(alpha: 0.4),
+                      width: 1.2,
                     ),
-                    child: Row(
-                      children: [
-                        PopupMenuButton<SearchEngine>(
-                          tooltip: 'Alterar mecanismo de busca',
-                          icon: Icon(
-                            Icons.search_rounded,
-                            color: colors.primary,
-                            size: 22,
-                          ),
-                          onSelected: (engine) =>
-                              browser.setSearchEngine(engine),
-                          itemBuilder: (_) => [
-                            for (final engine in SearchEngine.values)
-                              PopupMenuItem(
-                                value: engine,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      engine == browser.data.searchEngine
-                                          ? Icons.radio_button_checked_rounded
-                                          : Icons
-                                                .radio_button_unchecked_rounded,
-                                      size: 18,
-                                      color: engine == browser.data.searchEngine
-                                          ? colors.primary
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(engine.label),
-                                  ],
-                                ),
-                              ),
-                          ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Row(
+                    children: [
+                      PopupMenuButton<SearchEngine>(
+                        tooltip: 'Alterar mecanismo de busca',
+                        icon: Icon(
+                          Icons.search_rounded,
+                          color: colors.primary,
+                          size: 22,
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            decoration: InputDecoration(
-                              hintText:
-                                  'Pesquisar com ${browser.data.searchEngine.label} ou digitar URL...',
-                              border: InputBorder.none,
-                              hintStyle: TextStyle(
-                                color: colors.onSurfaceVariant.withValues(
-                                  alpha: 0.7,
-                                ),
-                                fontSize: 14.5,
+                        onSelected: (engine) => browser.setSearchEngine(engine),
+                        itemBuilder: (_) => [
+                          for (final engine in SearchEngine.values)
+                            PopupMenuItem(
+                              value: engine,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    engine == browser.data.searchEngine
+                                        ? Icons.radio_button_checked_rounded
+                                        : Icons.radio_button_unchecked_rounded,
+                                    size: 18,
+                                    color: engine == browser.data.searchEngine
+                                        ? colors.primary
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(engine.label),
+                                ],
                               ),
                             ),
-                            onSubmitted: onSubmit,
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText:
+                                'Pesquisar com ${browser.data.searchEngine.label} ou digitar URL...',
+                            border: InputBorder.none,
+                            hintStyle: TextStyle(
+                              color: colors.onSurfaceVariant.withValues(
+                                alpha: 0.7,
+                              ),
+                              fontSize: 14.5,
+                            ),
                           ),
+                          onSubmitted: onSubmit,
                         ),
-                        IconButton(
-                          tooltip: 'Colar e pesquisar',
-                          icon: Icon(
-                            Icons.content_paste_rounded,
-                            size: 18,
-                            color: colors.onSurfaceVariant,
-                          ),
-                          onPressed: () async {
-                            final data = await Clipboard.getData(
-                              Clipboard.kTextPlain,
-                            );
-                            final text = data?.text?.trim();
-                            if (text != null && text.isNotEmpty) {
-                              onSubmit(text);
-                            }
-                          },
+                      ),
+                      IconButton(
+                        tooltip: 'Colar e pesquisar',
+                        icon: Icon(
+                          Icons.content_paste_rounded,
+                          size: 18,
+                          color: colors.onSurfaceVariant,
                         ),
-                      ],
-                    ),
+                        onPressed: () async {
+                          final data = await Clipboard.getData(
+                            Clipboard.kTextPlain,
+                          );
+                          final text = data?.text?.trim();
+                          if (text != null && text.isNotEmpty) {
+                            onSubmit(text);
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ),
 
@@ -319,18 +328,20 @@ class StartPage extends StatelessWidget {
         : null;
 
     return SizedBox(
-      width: 144,
+      width: 148,
       child: Material(
-        color: colors.surfaceContainer,
+        color: colors.surfaceContainerLow,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           side: BorderSide(
-            color: colors.outlineVariant.withValues(alpha: 0.35),
+            color: colors.outlineVariant.withValues(alpha: 0.3),
+            width: 0.9,
           ),
         ),
+        elevation: 0,
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          hoverColor: colors.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          hoverColor: colors.primary.withValues(alpha: 0.1),
           onTap: () => onSubmit(url),
           onSecondaryTapUp: (details) =>
               DartBrowserContextMenu.showSiteCardContextMenu(
@@ -344,11 +355,11 @@ class StartPage extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: colors.primaryContainer.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(8),
+                    color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
                     child: faviconEndpoint != null
@@ -356,13 +367,13 @@ class StartPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(6),
                             child: Image.network(
                               faviconEndpoint,
-                              width: 20,
-                              height: 20,
+                              width: 18,
+                              height: 18,
                               fit: BoxFit.contain,
                               errorBuilder: (_, _, _) => Image.network(
                                 'https://icons.duckduckgo.com/ip3/$cleanHost.ico',
-                                width: 20,
-                                height: 20,
+                                width: 18,
+                                height: 18,
                                 fit: BoxFit.contain,
                                 errorBuilder: (_, _, _) => Text(
                                   initial,
@@ -385,12 +396,12 @@ class StartPage extends StatelessWidget {
                           ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    host,
+                    cleanHost,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,

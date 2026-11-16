@@ -118,7 +118,7 @@ class _CommandPaletteDialogState extends State<CommandPaletteDialog> {
       PaletteItem(
         title: 'Modo Leitura Sem Distrações',
         subtitle: 'Remover anúncios e focar apenas no texto do artigo',
-        icon: Icons.chrome_reader_mode_rounded,
+        icon: Icons.article_rounded,
         category: 'Ações',
         onSelect: () {
           if (currentTab.address != null) {

@@ -4,6 +4,29 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'download_item.dart';
 import 'reading_item.dart';
 
+enum BrowserPerformanceProfile {
+  balanced(
+    'Equilibrado',
+    'Aloca potência máxima na aba em uso e gerencia o segundo plano de forma inteligente.',
+    Icons.tune_rounded,
+  ),
+  highPerformance(
+    'Alto Desempenho',
+    'Potência máxima, aceleração gráfica e taxa de quadros irrestrita para jogos e trabalho pesado.',
+    Icons.bolt_rounded,
+  ),
+  efficiency(
+    'Economia de Energia',
+    'Reduz o consumo de CPU e memória em abas secundárias para poupar bateria e recursos.',
+    Icons.eco_rounded,
+  );
+
+  const BrowserPerformanceProfile(this.label, this.description, this.icon);
+  final String label;
+  final String description;
+  final IconData icon;
+}
+
 class BrowserData {
   BrowserData(this.preferences)
     : favorites = preferences.getStringList('favorites') ?? [],
@@ -16,6 +39,10 @@ class BrowserData {
       readerTheme = preferences.getString('readerTheme') ?? 'sepia',
       readerFontSize = preferences.getDouble('readerFontSize') ?? 18.0,
       memorySaver = preferences.getBool('memorySaver') ?? false,
+      performanceProfile = BrowserPerformanceProfile.values.firstWhere(
+        (p) => p.name == preferences.getString('performanceProfile'),
+        orElse: () => BrowserPerformanceProfile.highPerformance,
+      ),
       oledBlack = preferences.getBool('oledBlack') ?? false,
       forceWebDarkMode = preferences.getBool('forceWebDarkMode') ?? false,
       cornerRadius = preferences.getDouble('cornerRadius') ?? 16.0,
@@ -44,6 +71,7 @@ class BrowserData {
   String readerTheme;
   double readerFontSize;
   bool memorySaver;
+  BrowserPerformanceProfile performanceProfile;
   bool oledBlack;
   bool forceWebDarkMode;
   double cornerRadius;
