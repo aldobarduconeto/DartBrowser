@@ -638,7 +638,7 @@ class ChromeExtensionService {
       final bg = decoded['background'] as Map;
       if (bg['service_worker'] is String) {
         final swPath = bg['service_worker'].toString().replaceAll(r'\', '/');
-        final swKey = files.keys.firstWhere(
+        final swKey = fileMap.keys.firstWhere(
           (k) =>
               k == swPath ||
               k.endsWith(swPath) ||
@@ -646,12 +646,12 @@ class ChromeExtensionService {
           orElse: () => '',
         );
         if (swKey.isNotEmpty &&
-            files[swKey] != null &&
-            files[swKey]!.trim().isNotEmpty) {
+            fileMap[swKey] != null &&
+            fileMap[swKey]!.trim().isNotEmpty) {
           compiledScripts.writeln('''
             // Background Service Worker ($swPath)
             try {
-              ${files[swKey]}
+              ${fileMap[swKey]}
             } catch (swErr) {
               console.warn('[Extension Service Worker] ' + ${jsonEncode(name)} + ':', swErr);
             }
@@ -660,7 +660,7 @@ class ChromeExtensionService {
       } else if (bg['scripts'] is List) {
         for (final script in bg['scripts'] as List) {
           final sPath = script.toString().replaceAll(r'\', '/');
-          final sKey = files.keys.firstWhere(
+          final sKey = fileMap.keys.firstWhere(
             (k) =>
                 k == sPath ||
                 k.endsWith(sPath) ||
@@ -668,12 +668,12 @@ class ChromeExtensionService {
             orElse: () => '',
           );
           if (sKey.isNotEmpty &&
-              files[sKey] != null &&
-              files[sKey]!.trim().isNotEmpty) {
+              fileMap[sKey] != null &&
+              fileMap[sKey]!.trim().isNotEmpty) {
             compiledScripts.writeln('''
               // Background Script ($sPath)
               try {
-                ${files[sKey]}
+                ${fileMap[sKey]}
               } catch (bgErr) {
                 console.warn('[Extension Background] ' + ${jsonEncode(name)} + ':', bgErr);
               }
