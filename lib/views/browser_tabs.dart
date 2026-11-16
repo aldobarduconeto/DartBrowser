@@ -573,6 +573,11 @@ class BrowserTabs extends StatelessWidget {
       isPinned: tab.isPinned,
       groupColor: tab.group != null ? Color(tab.group!.color) : null,
       onTap: () => onSelect(index),
+      onTertiaryTap: () {
+        if (!tab.isPinned) {
+          browser.closeTab(index);
+        }
+      },
       onSecondaryTapUp: (details) =>
           _showTabContextMenu(context, tab, index, details.globalPosition),
       actions: [
@@ -600,22 +605,10 @@ class BrowserTabs extends StatelessWidget {
             ),
           ),
         if (!tab.isPinned)
-          Tooltip(
-            message: 'Fechar guia (Ctrl+W)',
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: () => browser.closeTab(index),
-              child: Padding(
-                padding: const EdgeInsets.all(3),
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 13,
-                  color: isSelected
-                      ? colors.onSurface
-                      : colors.onSurfaceVariant.withValues(alpha: 0.8),
-                ),
-              ),
-            ),
+          _TabCloseButton(
+            onClose: () => browser.closeTab(index),
+            isSelected: isSelected,
+            colors: colors,
           ),
       ],
     );
@@ -748,6 +741,7 @@ class BrowserTabs extends StatelessWidget {
     required VoidCallback onTap,
     required void Function(TapUpDetails) onSecondaryTapUp,
     required List<Widget> actions,
+    VoidCallback? onTertiaryTap,
     Color? groupColor,
     bool isGroupHeader = false,
     bool isSuspended = false,
@@ -799,60 +793,121 @@ class BrowserTabs extends StatelessWidget {
               shape: shape,
               elevation: selected && !isGroupHeader ? 1 : 0,
               shadowColor: Colors.black.withValues(alpha: 0.08),
-              child: InkWell(
-                customBorder: shape,
-                onTap: onTap,
-                onSecondaryTapUp: onSecondaryTapUp,
-                hoverColor: selected
-                    ? null
-                    : colors.surfaceContainerHighest.withValues(alpha: 0.4),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: vertical
-                        ? BorderRadius.circular(8)
-                        : const BorderRadius.vertical(top: Radius.circular(8)),
-                    border: selected && !vertical && !isGroupHeader
-                        ? Border(
-                            top: BorderSide(
-                              color: activeBorderColor,
-                              width: 2.5,
-                            ),
-                          )
-                        : null,
-                  ),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: (compact || isPinned) ? 0 : 8,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: isPinned
-                        ? MainAxisAlignment.center
-                        : MainAxisAlignment.start,
-                    children: [
-                      leading,
-                      if (!compact && !isPinned) ...[
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: selected
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                              color: selected
-                                  ? colors.onSurface
-                                  : colors.onSurfaceVariant,
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTertiaryTapUp: onTertiaryTap != null
+                    ? (_) => onTertiaryTap()
+                    : null,
+                child: InkWell(
+                  customBorder: shape,
+                  onTap: onTap,
+                  onSecondaryTapUp: onSecondaryTapUp,
+                  hoverColor: selected
+                      ? null
+                      : colors.surfaceContainerHighest.withValues(alpha: 0.4),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: vertical
+                          ? BorderRadius.circular(8)
+                          : const BorderRadius.vertical(top: Radius.circular(8)),
+                      border: selected && !vertical && !isGroupHeader
+                          ? Border(
+                              top: BorderSide(
+                                color: activeBorderColor,
+                                width: 2.5,
+                              ),
+                            )
+                          : null,
+                    ),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: (compact || isPinned) ? 0 : 8,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: isPinned
+                          ? MainAxisAlignment.center
+                          : MainAxisAlignment.start,
+                      children: [
+                        leading,
+                        if (!compact && !isPinned) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: selected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                                color: selected
+                                    ? colors.onSurface
+                                    : colors.onSurfaceVariant,
+                              ),
                             ),
                           ),
-                        ),
-                        ...actions,
+                          ...actions,
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TabCloseButton extends StatefulWidget {
+  const _TabCloseButton({
+    required this.onClose,
+    required this.isSelected,
+    required this.colors,
+  });
+
+  final VoidCallback onClose;
+  final bool isSelected;
+  final ColorScheme colors;
+
+  @override
+  State<_TabCloseButton> createState() => _TabCloseButtonState();
+}
+
+class _TabCloseButtonState extends State<_TabCloseButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Fechar guia (Ctrl+W)',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onClose,
+          child: Container(
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _hovered
+                  ? widget.colors.onSurface.withValues(alpha: 0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Icon(
+              Icons.close_rounded,
+              size: 14,
+              color: _hovered
+                  ? widget.colors.error
+                  : (widget.isSelected
+                      ? widget.colors.onSurface
+                      : widget.colors.onSurfaceVariant.withValues(alpha: 0.8)),
             ),
           ),
         ),
@@ -872,7 +927,8 @@ class _MouseTabDraggable extends Draggable<BrowserTab> {
   @override
   MultiDragGestureRecognizer createRecognizer(
     GestureMultiDragStartCallback onStart,
-  ) => ImmediateMultiDragGestureRecognizer(
+  ) => DelayedMultiDragGestureRecognizer(
+    delay: const Duration(milliseconds: 100),
     supportedDevices: const {
       PointerDeviceKind.mouse,
       PointerDeviceKind.trackpad,

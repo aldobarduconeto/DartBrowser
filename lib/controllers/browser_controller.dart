@@ -1329,6 +1329,12 @@ class BrowserController extends ChangeNotifier {
     if (!closed.isIncognito && closed.hasEngine && closed.address != null) {
       unawaited(_pictureInPicture.exitPiP(closed.engine));
     }
+    if (!closed.isIncognito && closed.hasEngine) {
+      try {
+        unawaited(closed.engine.stopLoading());
+        unawaited(closed.engine.loadHtmlString('about:blank'));
+      } catch (_) {}
+    }
     if (closed.address != null && !closed.isIncognito) {
       _closed.add((address: closed.address!, group: closed.group));
       if (_closed.length > 25) _closed.removeAt(0);
@@ -1374,6 +1380,12 @@ class BrowserController extends ChangeNotifier {
     final keepTab = tabs[keepIndex];
     for (final tab in tabs.where((tab) => tab != keepTab)) {
       _closePrivateTab(tab);
+      if (!tab.isIncognito && tab.hasEngine) {
+        try {
+          unawaited(tab.engine.stopLoading());
+          unawaited(tab.engine.loadHtmlString('about:blank'));
+        } catch (_) {}
+      }
     }
     tabs.retainWhere((t) => t == keepTab);
     selected = 0;
@@ -1389,6 +1401,12 @@ class BrowserController extends ChangeNotifier {
     if (fromIndex < 0 || fromIndex >= tabs.length - 1) return;
     for (final tab in tabs.skip(fromIndex + 1)) {
       _closePrivateTab(tab);
+      if (!tab.isIncognito && tab.hasEngine) {
+        try {
+          unawaited(tab.engine.stopLoading());
+          unawaited(tab.engine.loadHtmlString('about:blank'));
+        } catch (_) {}
+      }
     }
     tabs.removeRange(fromIndex + 1, tabs.length);
     if (selected >= tabs.length) selected = tabs.length - 1;
